@@ -38,7 +38,7 @@ If you plan to modify/develop the package, it would be easier to clone this repo
 
 To clone the repository
 ```
-git clone https://github.com/andrea-begnoni/GW.jl.git
+git clone https://github.com/andrea-begnoni/GWInference.jl.git
 ```
 Then in your Julia script write
 ```julia
@@ -49,6 +49,8 @@ using GWInference
 ```
 
 You are now ready to go. We suggest you to start from `easy_GWJulia.ipynb`
+If you installed the package from Julia command line we suggest to create a new folder and download there the `easy_GWJulia.ipynb` file. Then when you'll run the code it will create automatically the sub-folder needed. 
+Otherwise you can clone the whole repository on your machine, then you'd need to pay attention to which GWInference folder you are activating (the package from the registry or the git cloned repository)
 
 ## Structure of the repository
 
