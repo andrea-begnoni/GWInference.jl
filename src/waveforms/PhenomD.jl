@@ -150,7 +150,9 @@ function Phi(model::PhenomD,
     fcutPar = 0.2,
     GMsun_over_c3 = uc.GMsun_over_c3,
     container = nothing,
+    fRef_hz = 20.0
 )
+    println("Using $fRef_hz Hz as reference frequency for PhenomD phase computation.")
 
     # Get the path to the directory of this file
     PACKAGE_DIR = @__DIR__
@@ -186,6 +188,7 @@ function Phi(model::PhenomD,
     m2ByM = 0.5 * (1.0 - Seta)
     # We work in dimensionless frequency M*f, not f
     fgrid = M * GMsun_over_c3 .* f 
+    fRef = M * GMsun_over_c3 * fRef_hz
     # As in arXiv:1508.07253 eq. (4) and LALSimIMRPhenomD_internals.c line 97
     chiPN = (chi_s * (1.0 - eta * 76.0 / 113.0) + Seta * chi_a)
     xi = -1.0 + chiPN
@@ -559,7 +562,7 @@ function Phi(model::PhenomD,
         ) * etaInv
 
     # LAL sets fRef as the minimum frequency, do the same
-    fRef = fgrid[1] 
+    #fRef = fgrid[1] 
 
     phiRef = ifelse(
         fRef < fInsJoin,

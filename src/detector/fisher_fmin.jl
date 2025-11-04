@@ -198,6 +198,16 @@ function FisherMatrix_internal(model::Model,
 
 
     fgrid = 10 .^ (range(log10(fmin), log10(fcut), length = res))
+
+    if fmin > 2.1
+
+
+        ff_full, ff_low = _put_freqs(fgrid; f_anchor = 2., res = 100)
+    else
+        ff_full = fgrid
+        ff_low = Float64[]
+    end
+
     psdGrid = linear_interpolation(detector.fNoise, detector.psd, extrapolation_bc = 1.0)(fgrid)  
     
     # compute SNR and procede only if it is above the threshold
@@ -240,15 +250,20 @@ function FisherMatrix_internal(model::Model,
     ###########  Derivatives of the strain w.r.t. each parameter
     strainAutoDiff_real = Matrix{Float64}(undef, res, nPar)
     strainAutoDiff_imag = Matrix{Float64}(undef, res, nPar)
+    strainAutoDiff_real_full = Matrix{Float64}(undef, length(ff_full), nPar)
+    strainAutoDiff_imag_full = Matrix{Float64}(undef, length(ff_full), nPar)
+
     event_parameter = [mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal, optional_param...]
     event_parameter = event_parameter[1:nPar] 
-         
-    strainAutoDiff_real = ForwardDiff.jacobian(
+
+    println("length ff_full: ", length(ff_full))
+    println("length ff_low: ", length(ff_low))
+    strainAutoDiff_real_full = ForwardDiff.jacobian(
         x -> real(
             Strain(
                 model,
                 detectorCoordinates,
-                fgrid,
+                ff_full,
                 x... ,
                 alpha = alpha,
                 useEarthMotion = useEarthMotion
@@ -256,12 +271,12 @@ function FisherMatrix_internal(model::Model,
         ),
         event_parameter,
     )
-    strainAutoDiff_imag = ForwardDiff.jacobian(
+    strainAutoDiff_imag_full = ForwardDiff.jacobian(
         x -> imag(
             Strain(
                 model,
                 detectorCoordinates,
-                fgrid,
+                ff_full,
                 x... ,
                 alpha = alpha,
                 useEarthMotion = useEarthMotion,
@@ -269,19 +284,22 @@ function FisherMatrix_internal(model::Model,
         ),
         event_parameter,
     )
+    println("strain first elements: ", strainAutoDiff_real_full[1:5,1])
+    println("strain first elements after cut: ", strainAutoDiff_real_full[101:105,1])
+
 
     # It can happen that a certain frequency gives a Nan value, in this case we set the derivative to zero,
     # this happens less than one time per event and usually at the end of the frequency grid.
-    strainAutoDiff_real[isnan.(strainAutoDiff_real)] .= 0.0
-    strainAutoDiff_imag[isnan.(strainAutoDiff_imag)] .= 0.0
+    strainAutoDiff_real_full[isnan.(strainAutoDiff_real_full)] .= 0.0
+    strainAutoDiff_imag_full[isnan.(strainAutoDiff_imag_full)] .= 0.0
 
-    #println("strain first elements after cut final: ", strainAutoDiff_real[1:5,1])
 
-    # ## go back to fgrid size
-    # for ii in 1:nPar
-    #     strainAutoDiff_real[:, ii] = extract_correct_fvec(ff_low, strainAutoDiff_real_full[:, ii])
-    #     strainAutoDiff_imag[:, ii] = extract_correct_fvec(ff_low, strainAutoDiff_imag_full[:, ii])
-    # end
+    ## go back to fgrid size
+    for ii in 1:nPar
+        strainAutoDiff_real[:, ii] = extract_correct_fvec(ff_low, strainAutoDiff_real_full[:, ii])
+        strainAutoDiff_imag[:, ii] = extract_correct_fvec(ff_low, strainAutoDiff_imag_full[:, ii])
+    end
+    println("strain first elements after cut final: ", strainAutoDiff_real[1:5,1])
     ######### end of derivatives
     jacobian = Matrix{ComplexF64}(undef, nPar, res)
     for ii in 1:nPar
