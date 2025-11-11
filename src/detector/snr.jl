@@ -37,7 +37,7 @@ SNR(model, detector, mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, Lamb
     SNR = SNR(PhenomD(), CE1Id , 10.0, 0.25, 0.5, 0.5, 1.0, 0.1, 0.2, 0.3, 0.4)
     ```
 """
-function SNR(model::Model,
+function SNR(model::CBC,
     detector::Detector,
     mc::Float64,
     eta::Float64,
@@ -50,11 +50,12 @@ function SNR(model::Model,
     psi::Float64,
     tcoal::Float64,
     optional_param...;
-    fmin::Float64=2.0,
-    fmax::Union{Nothing, Float64}=nothing,
+    fmin=2.0,
+    fmax = nothing,
     res = 1000,
-    useEarthMotion::Bool = false,
+    useEarthMotion = false,
     ampl_precomputation = nothing,
+    precomputation = true,
 )
 
     #extract tidal diformabilites
@@ -173,6 +174,128 @@ function SNR(model::Model,
 
 end
 
+
+function SNR(model::NonCBC,
+    detector::Detector,
+    intrinsic_param::Tuple,
+    dL::Float64,
+    theta::Float64,
+    phi::Float64,
+    iota::Float64,
+    psi::Float64,
+    tcoal::Float64;
+    fmin=2.0,
+    fmax = nothing,
+    res = 1000,
+    useEarthMotion = false,
+    ampl_precomputation = nothing,
+)
+
+    
+    if isnothing(fmax)
+        fcut = waveform._fcut(model, intrinsic_param...)
+    else
+        fcut_tmp = waveform._fcut(model, intrinsic_param...)
+        fcut = ifelse(fcut_tmp > fmax, fmax, fcut_tmp)
+    end
+
+
+    fgrid = 10 .^ (range(log10(fmin), log10(fcut), length = res))
+    # Out of the PSD range, we use a constant value of 1, which results in completely negligible contributions
+    psdGrid = linear_interpolation(detector.fNoise, detector.psd, extrapolation_bc = 1.0)(fgrid)
+    detectorCoordinates = DetectorCoordinates(
+        detector.latitude_rad,
+        detector.longitude_rad,
+        detector.orientation_rad,
+        detector.arm_aperture_rad
+    )
+
+        if ampl_precomputation === nothing
+           
+            ampl_precomputation = PolAbs(
+                model,
+                fgrid,
+                intrinsic_param...,
+                dL,
+                iota,
+            )
+        else
+            ampl_precomputation = ampl_precomputation
+        end
+
+    if detector.shape == 'L' # in Julia '' indicates a char, while "" a string 
+        Aps, Acs = PolarizationDet(
+            model,
+            detectorCoordinates,
+            ampl_precomputation,
+            fgrid,
+            theta,
+            phi,
+            psi,
+            tcoal,
+        )
+        Atot = Aps .* Aps .+ Acs .* Acs
+        SNR = 2.0 * sqrt(trapz(fgrid, Atot ./ psdGrid))
+
+    elseif detector.shape == 'T'
+        SNRsq_Tshape = zeros(3)
+        
+        # The signal in 3 arms sums to zero for geometrical reasons, so we can use this to skip some calculations
+
+        Aps1, Acs1 = PolarizationDet(
+            model,
+            detectorCoordinates,
+            ampl_precomputation,
+            fgrid,
+            theta,
+            phi,
+            psi,
+            tcoal,
+            alpha = 0.0,
+        )
+        Atot1 = Aps1 .* Aps1 .+ Acs1 .* Acs1
+        Aps2, Acs2 = PolarizationDet(
+            model,
+            detectorCoordinates,
+            ampl_precomputation,
+            fgrid,
+            theta,
+            phi,
+            psi,
+            tcoal,
+            alpha = 60.0,
+        )
+        Atot2 = Aps2 .* Aps2 .+ Acs2 .* Acs2
+        Aps3, Acs3 = -(Aps1 .+ Aps2), -(Acs1 .+ Acs2)
+        Atot3 = Aps3 .* Aps3 .+ Acs3 .* Acs3
+        SNRsq_Tshape[1] = trapz(fgrid, Atot1 ./ psdGrid)
+        SNRsq_Tshape[2] = trapz(fgrid, Atot2 ./ psdGrid)
+        SNRsq_Tshape[3] = trapz(fgrid, Atot3 ./ psdGrid)
+
+
+        SNR = 2.0 * sqrt(sum(SNRsq_Tshape)) # The factor of two arises by cutting the integral from 0 to infinity
+    
+    end
+
+    return SNR
+
+end
+
+# Convenience method that accepts variable arguments and converts to tuple
+# function SNR(model::NonCBC,
+#     detector::Detector,
+#     intrinsic_param_args...,
+#     dL::Float64,
+#     theta::Float64,
+#     phi::Float64,
+#     iota::Float64,
+#     psi::Float64,
+#     tcoal::Float64;
+#     kwargs...
+# )
+#     return SNR(model, detector, intrinsic_param_args, dL, theta, phi, iota, psi, tcoal; kwargs...)
+# end
+
 """
 This function computes the *signal-to-noise-ratio*, SNR, as a function of the parameters of the event, as measured by a NETWORK of detectors.
 It relies on the function SNR(..., detector::Detector, ...), which computes the SNR for a single detector.
@@ -187,7 +310,7 @@ where the dots indicate the parameters equal to the previous function call.
 ```
 
 """
-function SNR(model::Model,
+function SNR(model::CBC,
     detector::Vector{Detector},
     mc::Float64,
     eta::Float64,
@@ -200,11 +323,11 @@ function SNR(model::Model,
     psi::Float64,
     tcoal::Float64,
     optional_param...;
-    fmin::Float64=2.0,
-    fmax::Union{Nothing, Float64} = nothing,
+    fmin=2.0,
+    fmax = nothing,
     res = 1000,
-    useEarthMotion::Bool = false,
-    precomputation::Bool = true,
+    useEarthMotion = false,
+    precomputation = true,
 )
 ##########################
 ## This part is to precompute the amplitude of the waveform which is the longest part of the computation
@@ -277,6 +400,72 @@ function SNR(model::Model,
     return sqrt(sum(SNRList.^2))
 end
 
+
+function SNR(model::NonCBC,
+    detector::Vector{Detector},
+    intrinsic_param::Tuple,
+    dL::Float64,
+    theta::Float64,
+    phi::Float64,
+    iota::Float64,
+    psi::Float64,
+    tcoal::Float64;
+    fmin=2.0,
+    fmax = nothing,
+    res = 1000
+)
+##########################
+## This part is to precompute the amplitude of the waveform which is the longest part of the computation
+    
+
+    if isnothing(fmax)
+        fcut = waveform._fcut(model, intrinsic_param...)
+    else
+        fcut_tmp = waveform._fcut(model, intrinsic_param...)
+        fcut = ifelse(fcut_tmp > fmax, fmax, fcut_tmp)
+    end
+
+
+    fgrid = 10 .^ (range(log10(fmin), log10(fcut), length = res))
+
+
+########################
+    SNRList = Vector{Float64}(undef,length(detector))
+    for i in 1:length(detector)
+        SNRList[i] = SNR(
+            model,
+            detector[i],
+            intrinsic_param,
+            dL,
+            theta,
+            phi,
+            iota,
+            psi,
+            tcoal,
+            fmin=fmin,
+            fmax=fmax,
+            res=res,
+        )
+    end
+
+    return sqrt(sum(SNRList.^2))
+end
+
+# Convenience method that accepts variable arguments and converts to tuple
+# function SNR(model::NonCBC,
+#     detector::Vector{Detector},
+#     intrinsic_param_args...,
+#     dL::Float64,
+#     theta::Float64,
+#     phi::Float64,
+#     iota::Float64,
+#     psi::Float64,
+#     tcoal::Float64;
+#     kwargs...
+# )
+#     return SNR(model, detector, intrinsic_param_args, dL, theta, phi, iota, psi, tcoal; kwargs...)
+# end
+
 """
 This function computes the *signal-to-noise-ratio*, SNR, as a function of the parameters of an ARRAY of event, as measured by a SINGLE detector or a NETWORK of detectors.
 It relies on the function SNR(..., detector::Detector, ...), which computes the SNR for a single detector.
@@ -286,7 +475,7 @@ It is possible to save the SNRs in a file, if the optional argument `auto_save` 
 if the default is left it saves BBH in the folder "output/BBH" and so on for each source type. The file is saved in the folder `output/name_folder/SNRs.h5` 
 and contains the SNRs for the events in the catalog. It contains also the parameters of the events if the optional argument `save_catalog` is set to true.
 """
-function SNR(model::Model,
+function SNR(model::CBC,
     detector::Union{Detector, Vector{Detector}},
     mc::AbstractArray,
     eta::AbstractArray,
@@ -299,25 +488,17 @@ function SNR(model::Model,
     psi::AbstractArray,
     tcoal::AbstractArray,
     optional_param...;
-    fmin::Union{Float64, AbstractArray}=2.0,
-    fmax::Union{Nothing, Float64, AbstractArray} = nothing,
+    fmin=2.0,
+    fmax = nothing,
     res = 1000,
-    auto_save::Bool = false,
+    auto_save = false,
     name_folder = "BBH",
-    save_catalog::Bool = false,
-    useEarthMotion::Bool = false,
-    precomputation::Bool = true,
+    save_catalog = false,
+    useEarthMotion = false,
+    precomputation = true,
 )
     nEvents = length(mc)
     SNRs = Vector{Float64}(undef, nEvents)
-
-    if(fmin isa AbstractArray && length(fmin) != nEvents)
-        throw(ArgumentError("fmin must be an array of the same length as the number of events (or otherwise a single scalar Float64)"))
-    end
-
-    if(fmax isa AbstractArray && length(fmax) != nEvents)
-        throw(ArgumentError("fmax must be an array of the same length as the number of events (or otherwise a single scalar Float64 or Nothing)"))
-    end
 
     #check correct length of optional_parameters
     for op in optional_param
@@ -367,11 +548,11 @@ function SNR(model::Model,
             psi[ii], 
             tcoal[ii],
             optional_param_ii..., 
-            fmin= (fmin isa AbstractArray ? fmin[ii] : fmin), 
-            fmax= (fmax isa AbstractArray ? fmax[ii] : fmax), 
+            fmin=fmin, 
+            fmax=fmax, 
             res = res, 
             useEarthMotion = useEarthMotion,
-            precomputation = precomputation)
+        precomputation = precomputation)
     end 
 
     println("SNRs computed!")
@@ -419,10 +600,119 @@ function SNR(model::Model,
                 # See above
                 write(file, "Lambda1", Lambda1)
                 write(file, "Lambda2", Lambda2)
-                # It would be nice to save fmin and fmax as well
             end
         end
     end
 
     return SNRs
 end
+
+
+
+function SNR(model::NonCBC,
+    detector::Union{Detector, Vector{Detector}},
+    intrinsic_param::Tuple,
+    dL::AbstractArray,
+    theta::AbstractArray,
+    phi::AbstractArray,
+    iota::AbstractArray,
+    psi::AbstractArray,
+    tcoal::AbstractArray;
+    fmin=2.0,
+    fmax = nothing,
+    res = 1000,
+    auto_save = false,
+    name_folder = "nonCBC",
+    save_catalog = false,
+)
+    nEvents = length(dL)
+    SNRs = Vector{Float64}(undef, nEvents)
+
+    #check correct length of optional_parameters
+    for op in intrinsic_param
+        if length(op) != nEvents
+            throw(DomainError(op, "Length of each intrinsic parameter must be a vectors with the same length as the number of events!"))
+        end
+    end
+
+
+    elapsed_time = @elapsed @showprogress desc="Computing SNRs..."  @threads for ii in 1:nEvents  
+                    
+        intrinsic_param_ii = tuple([op[ii] for op in intrinsic_param]...)
+
+        SNRs[ii]=SNR(
+            model,
+            detector,
+            intrinsic_param_ii, 
+            dL[ii], 
+            theta[ii], 
+            phi[ii], 
+            iota[ii], 
+            psi[ii], 
+            tcoal[ii],
+            fmin=fmin, 
+            fmax=fmax, 
+            res = res)
+    end 
+
+    println("SNRs computed!")
+    if elapsed_time > 60.0
+        elapsed_time = elapsed_time/60
+        println("The evaluation took: ", elapsed_time, " minutes.")
+    else
+        println("The evaluation took: ", elapsed_time, " seconds.")
+    end
+
+    if auto_save == true
+        path = pwd()
+        mkpath("output/"*name_folder)
+        path = pwd()*"/output/"*name_folder*"/"
+        date = Dates.now()
+        date_format = string(Dates.format(date, "e dd u yyyy HH:MM:SS"))
+        h5open(path*"SNRs.h5", "w") do file
+            attributes(file)["number_events"] = nEvents
+            if typeof(detector) == Vector{Detector}
+                label = [detector[i].label for i in eachindex(detector)]
+                attributes(file)["Detectors"] = label
+                attributes(file)["What_this_file_contains"] = "This file contains the SNR for the "*string(nEvents)*" events of the catalog 
+                                generated with the "*string(typeof(model))*" waveform model. The SNR is calculated for the "*join(label,",")*" detectors."
+                attributes(file)["date"] = date_format
+            else
+                attributes(file)["Detectors"] = detector.label
+                attributes(file)["What_this_file_contains"] = "This file contains the SNR for the "*string(nEvents)*" events of the catalog 
+                                generated with the "*string(typeof(model))*" waveform model. The SNR is calculated for the "*detector.label*" detectors."
+                attributes(file)["date"] = date_format
+            end   
+            
+            write(file, "SNRs", SNRs) 
+            if save_catalog & typeof(model) <: GrModel 
+                write(file, "intrinsic_param", intrinsic_param)
+                write(file, "dL", dL)
+                write(file, "theta", theta)
+                write(file, "phi", phi)
+                write(file, "iota", iota)
+                write(file, "psi", psi)
+                write(file, "tcoal", tcoal)
+                # Lambdas are well defined!
+                # See above
+            end
+        end
+    end
+
+    return SNRs
+end
+
+# Convenience method that accepts variable arguments and converts to tuple
+# function SNR(model::NonCBC,
+#     detector::Union{Detector, Vector{Detector}},
+#     intrinsic_param_arrays...,
+#     dL::AbstractArray,
+#     theta::AbstractArray,
+#     phi::AbstractArray,
+#     iota::AbstractArray,
+#     psi::AbstractArray,
+#     tcoal::AbstractArray;
+#     kwargs...
+# )
+#     return SNR(model, detector, intrinsic_param_arrays, dL, theta, phi, iota, psi, tcoal; kwargs...)
+# end

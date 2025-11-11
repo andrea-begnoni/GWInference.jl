@@ -16,13 +16,16 @@ using LinearAlgebra
 
 
 export TaylorF2, PhenomD, PhenomD_NRTidal, PhenomHM, PhenomNSBH, PhenomXAS, PhenomXHM, PhenomD_TIGER, PhenomHM_TIGER, PhenomD_TIGER_spinless, PhenomHM_TIGER_spinless
-export Model, GrModel, BgrModel
+export Model, GrModel, BgrModel, NonCBC, CBC, BosonSR, BosonSR_ann
 export Ampl, Phi, PolAbs, Pol, _npar, _event_type, _available_waveforms, _fcut, _finalspin, _radiatednrg, _tau_star, _list_polarizations, hphc
 
 # Define an abstract type for the models
 abstract type Model end
-abstract type GrModel <: Model end    # Model for GrWaveforms
-abstract type BgrModel <: Model end   # Model for Wavefrom including beyond GR polarizations
+abstract type CBC <: Model end
+abstract type NonCBC <: Model end
+abstract type GrModel <: CBC end    # Model for GrWaveforms
+abstract type BgrModel <: CBC end   # Model for Wavefrom including beyond GR polarizations
+# abstract type NonBinarySources <:  end
 
 
 # Define a function to give an error message if the model is not implemented
@@ -176,6 +179,12 @@ struct PhenomHM_TIGER_spinless <: BgrModel
     PhenomHM_TIGER_spinless(PNorder::Float64) = new(PNorder, "BBH")
 end
 
+struct BosonSR <: NonCBC
+end
+
+struct BosonSR_ann <: NonCBC
+end
+
 """
 Returns the event_type of a struct<:Model as a string.
 """
@@ -230,6 +239,7 @@ include("PhenomD_TIGER.jl")
 include("PhenomHM_TIGER.jl")
 include("PhenomD_TIGER_spinless.jl")
 include("PhenomHM_TIGER_spinless.jl")
+include("bosonSR.jl")
 
 ##############################################################################
 #   STRUCTURE USED IN THE MODULE
@@ -790,6 +800,74 @@ end
 Returns polarizations of the PhenomD_TIGER_spinless waveform
 """
 function _list_polarizations(model::PhenomD_TIGER_spinless) 
+    return ["plus", "cross"]
+ end
+
+
+##############################################################################
+#
+#                              BosonSR
+#
+##############################################################################
+
+"""
+Returns the number of parameter of a struct<:Model as integer number. 
+"""
+function _npar(model::BosonSR)
+    return 10
+end
+
+function _npar(model::BosonSR_ann)
+    return 9
+end
+
+# """ 
+# helper function to do function overloading (i.e., to have different functions with the same name but different input arguments) 
+# """
+# function Phi(model::BosonSR,
+#     f,
+#     mc,
+#     eta,
+#     chi1,
+#     chi2,
+#     optional_param... ;
+#     fInsJoin_PHI = 0.018,
+#     fcutPar = 0.2,
+#     GMsun_over_c3 = uc.GMsun_over_c3,
+# )
+
+#     o1 = optional_param[1]
+#     return Phi(model, f, mc, eta, chi1, chi2, o1, fInsJoin_PHI=fInsJoin_PHI, fcutPar=fcutPar, GMsun_over_c3=GMsun_over_c3)
+# end
+
+# """ 
+# helper function to do function overloading (i.e., to have different functions with the same name but different input arguments) 
+# """
+# function Ampl(model::BosonSR,
+#     f,
+#     mc,
+#     eta,
+#     chi1,
+#     chi2,
+#     dL,
+#     optional_param... ;
+#     fcutPar = 0.2,
+#     fInsJoin_Ampl = 0.014,
+#     GMsun_over_c3 = uc.GMsun_over_c3,
+#     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+# )
+#     o1 = optional_param[1]
+#     return Ampl(model, f, mc, eta, chi1, chi2, dL, o1, fcutPar = fcutPar, fInsJoin_Ampl = fInsJoin_Ampl, GMsun_over_c3 = GMsun_over_c3, GMsun_over_c2_Gpc = GMsun_over_c2_Gpc)
+# end
+
+"""
+Returns polarizations of the BosonSR waveform
+"""
+function _list_polarizations(model::BosonSR) 
+    return ["plus", "cross"]
+ end
+
+ function _list_polarizations(model::BosonSR_ann) 
     return ["plus", "cross"]
  end
 

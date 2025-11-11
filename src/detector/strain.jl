@@ -250,6 +250,85 @@ function PolarizationDet(model::Model,
 
 end
 
+function PolarizationDet(model::NonCBC,
+    DetectorCoordinates::DetectorStructure,
+    pol::AbstractArray,
+    f::AbstractArray,
+    theta,
+    phi,
+    psi,
+    tcoal;
+    alpha = 0.0,
+    useEarthMotion = false
+)
+
+    if useEarthMotion   # technique from GWFAST
+        tcoalRescaled = tcoal #.- waveform._tau_star(model, f, intrinsic_param_tuple...) ./ (3600.0 * 24.0)
+        tRef =
+            tcoalRescaled .+
+            _deltLoc(theta, phi, tcoalRescaled, DetectorCoordinates) ./ (3600.0 * 24.0)
+    else
+        tRef = tcoal + _deltLoc(theta, phi, tcoal, DetectorCoordinates) / (3600.0 * 24.0)
+    end
+
+    #Fp, Fc = _patternFunction(theta, phi, psi, tRef, DetectorCoordinates, alpha_grad=alpha)
+    #Ap = @. Fp .* pol[1]
+    #Ac = @. Fc .* pol[2]
+
+    # project polarizations onto detector
+    Fp = _patternFunction(model, DetectorCoordinates, tRef, theta, phi, psi, alpha_grad=alpha)
+
+    n_fp = length(Fp)
+    pol_det = Vector{typeof(pol[1])}(undef, n_fp)
+    for idx in 1:n_fp
+        pol_det[idx] = @. Fp[idx] .* pol[idx] 
+    end
+
+    return pol_det
+
+end
+
+function PolarizationDet(model::NonCBC,
+    DetectorCoordinates::DetectorStructure,
+    f::AbstractArray,
+    intrinsic_param_tuple::Tuple,
+    dL,
+    theta,
+    phi,
+    iota,
+    psi,
+    tcoal;
+    alpha = 0.0,
+    useEarthMotion = false
+)
+
+    pol = Pol(
+        model,
+        f,
+        intrinsic_param_tuple...,
+        dL,
+        iota,
+        optional_param... 
+    )
+
+    pol_det = PolarizationDet(
+        model,
+        DetectorCoordinates,
+        pol,
+        f,
+        intrinsic_param_tuple...,
+        theta,
+        phi,
+        psi,
+        tcoal;
+        alpha = alpha,
+        useEarthMotion = useEarthMotion
+    )
+
+    return pol_det
+
+end
+
 """
 ToDo: New documentation for this function
 This function computes the phase of the waveform seen by the detector, given a waveform model. It already includes the phase due to the Earth motion.

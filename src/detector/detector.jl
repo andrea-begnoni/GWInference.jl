@@ -292,6 +292,6 @@ end
 # note order is important
 include("strain.jl")
 include("snr.jl")
-include("fisher.jl")
+#include("fisher.jl")
 
 end# of module
