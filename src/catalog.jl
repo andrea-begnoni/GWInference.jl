@@ -843,9 +843,9 @@ function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 1
     tcoal,
     phiCoal,
     Lambda_1,
-    Lambda_2
+    Lambda_2, 
+    z
     
-
 end
 
 
