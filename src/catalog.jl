@@ -435,7 +435,7 @@ The code also saves the redshift in the catalog, in case you want to use it for 
 
 
 """
-function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 10., seed_par = nothing, SFR = "Madau&Dickinson", name_catalog = nothing, local_rate = nothing)
+function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 10., seed_par = nothing, SFR = "Madau&Dickinson", name_catalog = nothing, local_rate = nothing, auto_save=true)
 
     if seed_par === nothing
         seed = rand(1:10000)
@@ -456,23 +456,25 @@ function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 1
         friend = "Fragos"
     end
 
-    if name_catalog === nothing
-        mkpath("catalogs/")
-        name_file = string(
-            "catalogs/catalog_",
-            population,
-            "_n_",
-            n_samples,
-            "_",
-            SFR,
-            "_td_",
-            time_delay_in_Myr,
-            "Myrs.h5",
-        )
-    else
-        mkpath("catalogs/")
-        path = pwd()*"/catalogs/"
-        name_file = path*name_catalog
+    if auto_save
+        if name_catalog === nothing
+            mkpath("catalogs/")
+            name_file = string(
+                "catalogs/catalog_",
+                population,
+                "_n_",
+                n_samples,
+                "_",
+                SFR,
+                "_td_",
+                time_delay_in_Myr,
+                "Myrs.h5",
+            )
+        else
+            mkpath("catalogs/")
+            path = pwd()*"/catalogs/"
+            name_file = path*name_catalog
+        end
     end
 
 
@@ -797,34 +799,36 @@ function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 1
     chirp_mass_detector_frame = chirp_mass .* (1 .+ z)
     eta = (m_1 .* m_2) ./ (m_1 .+ m_2) .^ 2
     dL = get_dL(z, clight, H0, Omega0_m, Omega0_Lambda) ./ 1e3 # Gpc
-    date = Dates.now()
-    date_format = string(Dates.format(date, "e dd u yyyy HH:MM:SS"))
-    println("Name of the catalog: ", name_file)
-    h5open(name_file, "w") do file
-        attributes(file)["format"] = "GWJulia"
-        attributes(file)["number_events"] = nEvents
-        attributes(file)["seed"] = seed
-        attributes(file)["population"] = population
-        attributes(file)["time_delay_in_Myrs"] = time_delay_in_Myr
-        attributes(file)["SFR"] = SFR
-        attributes(file)["total_number_sources_yr"] = Int(round(total_number_sources_yr, digits=0))
-        attributes(file)["local_rate"] = local_rate
-        attributes(file)["date"] = date_format
+    if auto_save
+        date = Dates.now()
+        date_format = string(Dates.format(date, "e dd u yyyy HH:MM:SS"))
+        println("Name of the catalog: ", name_file)
+        h5open(name_file, "w") do file
+            attributes(file)["format"] = "GWJulia"
+            attributes(file)["number_events"] = nEvents
+            attributes(file)["seed"] = seed
+            attributes(file)["population"] = population
+            attributes(file)["time_delay_in_Myrs"] = time_delay_in_Myr
+            attributes(file)["SFR"] = SFR
+            attributes(file)["total_number_sources_yr"] = Int(round(total_number_sources_yr, digits=0))
+            attributes(file)["local_rate"] = local_rate
+            attributes(file)["date"] = date_format
 
-        write(file, "Lambda1", Lambda_1)
-        write(file, "Lambda2", Lambda_2)
-        write(file, "chi1", chiz1)  # chi1 = chi1z, since chi1x = chi1y = 0
-        write(file, "chi2", chiz2)  # chi2 = chi2z, since chi2x = chi2y = 0
-        write(file, "mc", chirp_mass_detector_frame)
-        write(file, "eta", eta)
-        write(file, "dL", dL)
-        write(file, "z", z)
-        write(file, "theta", theta)
-        write(file, "phi", phi)
-        write(file, "iota", iota)
-        write(file, "psi", psi)
-        write(file, "phiCoal", phiCoal)
-        write(file, "tcoal", tcoal)
+            write(file, "Lambda1", Lambda_1)
+            write(file, "Lambda2", Lambda_2)
+            write(file, "chi1", chiz1)  # chi1 = chi1z, since chi1x = chi1y = 0
+            write(file, "chi2", chiz2)  # chi2 = chi2z, since chi2x = chi2y = 0
+            write(file, "mc", chirp_mass_detector_frame)
+            write(file, "eta", eta)
+            write(file, "dL", dL)
+            write(file, "z", z)
+            write(file, "theta", theta)
+            write(file, "phi", phi)
+            write(file, "iota", iota)
+            write(file, "psi", psi)
+            write(file, "phiCoal", phiCoal)
+            write(file, "tcoal", tcoal)
+        end
     end
 
     return chirp_mass_detector_frame,
