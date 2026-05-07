@@ -8,7 +8,7 @@
 
 Main features:
 
-- Generate a catalog of compact binary sources
+- Generate a catalog of compact binary sources accordingly to GWTC-4 arXiv.2508.18083
 - Perform a Fisher Matrix analysis with automatic differentiation
 - Analyze the results and obtain the errors on the parameters of the binary
 - Very fast, it takes less than a second to compute the Fisher Matrix, independently of the waveform model and the detector(s) configuration

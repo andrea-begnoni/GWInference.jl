@@ -247,9 +247,33 @@ function Phi(model::PhenomD,
             (732985.0 / 2268.0 - 24260.0 * eta / 81.0 - 340.0 * eta2 / 9.0) * chi_s +
             (732985.0 / 2268.0 + 140.0 * eta / 9.0) * Seta * chi_a
         ) #variable to be used later
+    # TF2_6coeff_tmp =
+    #     11583.231236531 / 4.694215680 - 640.0 / 3.0 * pi2 -
+    #     684.8 / 2.1 * MathConstants.eulergamma +
+    #     eta * (-15737.765635 / 3.048192 + 225.5 / 1.2 * pi2) +
+    #     eta2 * 76.055 / 1.728 - eta2 * eta * 127.825 / 1.296 - log(4.0) * 684.8 / 2.1 +
+    #     pi * chi1 * m1ByM * (1490.0 / 3.0 + m1ByM * 260.0) +
+    #     pi * chi2 * m2ByM * (1490.0 / 3.0 + m2ByM * 260.0) +
+    #     (326.75 / 1.12 + 557.5 / 1.8 * eta) * eta * chi1dotchi2 +
+    #     (4703.5 / 8.4 + 2935.0 / 6.0 * m1ByM - 120.0 * m1ByM^2 ) *
+    #     m1ByM^2 *
+    #     QuadMon1 *
+    #     chi12 +
+    #     (-4108.25 / 6.72 - 108.5 / 1.2 * m1ByM + 125.5 / 3.6 * m1ByM^2 ) *
+    #     m1ByM^2 *
+    #     chi12 +
+    #     (4703.5 / 8.4 + 2935.0 / 6.0 * m2ByM - 120.0 * m2ByM^2 ) *
+    #     m2ByM^2 *
+    #     QuadMon2 *
+    #     chi22 +
+    #     (-4108.25 / 6.72 - 108.5 / 1.2 * m2ByM + 125.5 / 3.6 * m2ByM^2 ) *
+    #     m2ByM^2 *
+    #     chi22
+
+     
     TF2_6coeff_tmp =
         11583.231236531 / 4.694215680 - 640.0 / 3.0 * pi2 -
-        684.8 / 2.1 * MathConstants.eulergamma +
+        684.8 / 2.1 * 0.5772156649015  +
         eta * (-15737.765635 / 3.048192 + 225.5 / 1.2 * pi2) +
         eta2 * 76.055 / 1.728 - eta2 * eta * 127.825 / 1.296 - log(4.0) * 684.8 / 2.1 +
         pi * chi1 * m1ByM * (1490.0 / 3.0 + m1ByM * 260.0) +
@@ -268,7 +292,8 @@ function Phi(model::PhenomD,
         chi22 +
         (-4108.25 / 6.72 - 108.5 / 1.2 * m2ByM + 125.5 / 3.6 * m2ByM^2 ) *
         m2ByM^2 *
-        chi22
+        chi22 
+        
 
     TF2coeffs = TF2coeffsStructure(
         1.0,
@@ -466,7 +491,8 @@ function Phi(model::PhenomD,
         ) * etaInv
 
     # LAL sets fRef as the minimum frequency, do the same
-    fRef = fgrid[1] 
+    #fRef = fgrid[1] 
+    fRef = minimum(fgrid)
 
     phiRef = ifelse(
         fRef < fInsJoin,

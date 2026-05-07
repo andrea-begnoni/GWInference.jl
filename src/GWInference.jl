@@ -42,7 +42,7 @@ export DetectorStructure, DetectorCoordinates, Detector, _readASD, _readPSD, _ge
           _define_events, _deltLoc, _patternFunction, AmplitudeDet, PhaseDet, Strain, SNR, FisherMatrix, _read_Fishers_SNRs
 
 # export from catalog.jl
-export GenerateCatalog, ReadCatalog, get_dL
+export GenerateCatalog, ReadCatalog, get_dL, ReadHyperparam
 
 # export from utils.jl
 export GMsun_over_c3, GMsun_over_c2, uGpc, GMsun_over_c2_Gpc, REarth_km, clight_kms, clightGpc, Lamt_delLam_from_Lam12,

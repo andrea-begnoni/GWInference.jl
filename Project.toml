@@ -2,9 +2,9 @@ name = "GWInference"
 uuid = "12bfb5b4-b11b-482e-a53a-61106a071c3c"
 keywords = ["gravitational-waves", "physics", "astronomy"]
 license = "MIT"
+version = "0.1.0"
 authors = ["Andrea Begnoni <andrea.begnoni@phd.unipd.it> and Joachim Pomper"]
 description = "Gravitational wave fisher forecast package"
-version = "0.1.0"
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
@@ -26,9 +26,10 @@ Registrator = "4418983a-e44d-11e8-3aec-9789530b3b3e"
 Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Trapz = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
+UnitfulAstro = "6112ee07-acf9-5e0f-b108-d242c714bf9f"
 
 [compat]
-julia = "1.6"
 BenchmarkTools = "1"
 Dates = "1"
 DelimitedFiles = "1"
@@ -48,6 +49,9 @@ Registrator = "1.10"
 Roots = "2"
 Test = "1"
 Trapz = "2"
+Unitful = "1.28.0"
+UnitfulAstro = "1.2.2"
+julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
