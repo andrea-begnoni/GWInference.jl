@@ -1159,38 +1159,6 @@ function get_normalization_constant(z_eval::Float64, k::Float64, merger_rate::ty
 end
 
 
-# Computes the delay time between the formation and the merger of a binary sistem (according to 2303.10693v2 equation 8)
-# Cosmology: Planck 2018 , table 2, arxiv: 1807.06209
-#
-# ---Parameters---
-# z: redshift
-# zmerger: the merger redshift
-# zformation: the formation redshift of the binary
-# hubble_parameter: the value of the hubble parameter at redshifts in the range specified
-# ---Returns---
-# solution: the solution to the IntegralProblem
-
-
-function delaytime(zmerger::Float64, zformation::Float64, nsteps::Int64, Omega0_m = uc.Omega0_m, Omega0_Lambda = uc.Omega0_Lambda, H0=uc.H0 * u"km*s^-1*Mpc^-1")    
-    if zformation < zmerger
-        throw(ArgumentError("Formation redshift cannot be less than merger redshift"))
-        return nothing
-    end
-
-    z = range(z_merger, stop = z_formation, length = nsteps)
-
-    H = hubble_parameter(z, H0, Omega0_m, Omega0_Lambda)
-
-    domain = (zmerger, zformation)
-
-    f(z, H) = 1/((1+z)*H.value)
-
-    integral = IntegralProblem(f, domain)
-    solution = solve(integral, HCubatureJL(), reltol = 1e-5, abstol = 1e-5)
-
-    return solution
-end
-
 
 # Computes the value of a primitive of the integral in function delaytime, so that one of the bounds of integration can be determined knowing t_delay and the other 
 # bound. Default values of the cosmological parameters from Planck 2018 (table 2, arxiv: 1807.06209)
@@ -1222,7 +1190,7 @@ end
 # z_formation: the formation redshift
 
 function get_formation_redshift(z_merger, t_delay, Omega0_m=uc.Omega0_m, Omega0_Lambda=uc.Omega0_Lambda, H0=uc.H0 * u"km/s/Mpc")
-    var1 = csch.((-3/2)*H0*sqrt(Omega0_Lambda)*(t_delay .+ primitive_time_delay(z_merger)))
+    var1 = csch.((-3/2)*H0*sqrt(Omega0_Lambda)*(t_delay .+ primitive_time_delay(z_merger, Omega0_m, Omega0_Lambda, H0)))
     zplusone32 = var1.*sqrt(Omega0_Lambda/Omega0_m)
 
     zplusone = zplusone32.^(2/3)
@@ -1273,7 +1241,7 @@ end
 # ---Returns---
 # ψ: the star formation rate density
 
-function madau_fragos_Angelo(z, k = 2.6, z_peak=2.04, r=3.6)
+function madau_fragos_alternative(z, k = 2.6, z_peak=2.04, r=3.6)
     ψ = ((1 .+z).^k) ./ (1 .+ k/r.*((1 .+z)/(1+z_peak)).^(k+r))
     return ψ
 end
@@ -1329,26 +1297,24 @@ end
 """
 Computes the merger rate density as a function of redshift, after marginalizing over the time delay between formation and merger. The merger rate density is normalized to match the LVK rate density at a reference redshift zref.
 """
-function merger_rate_td_min(t_delay_min, zref, LVK_rate_zref, a, b, c, d)
+function merger_rate_td_min(t_delay_min, zref, LVK_rate_zref, a, b, c, d; Omega0_Lambda = uc.Omega0_Lambda, Omega0_m = uc.Omega0_m, H0=uc.H0 * u"km/s/Mpc")
 
     r = range(0, stop = 10, length=401)  # redshifts, length = 101 is necessary so that there is a row of the dataframe whose redshift is exactly 0.2
     merger_rate_td = zeros(length(r)) # merger rate density as a function of redshift, after marginalizing over time delay
 
     for (i, z) in enumerate(r)
 
-        age = how_old_universe(z) # Calculate the age of the universe at redshift z
+        age = how_old_universe(z, Omega0_Lambda, Omega0_m, H0) # Calculate the age of the universe at redshift z
         t_delay_max = min(age, 10u"Gyr")    # Maximum possible time delay is the age of the universe if it is less than 10 Gyr, else it is 10 Gyr
 
         if t_delay_max <= t_delay_min
             throw(ArgumentError("Minimum time delay cannot be bigger than maximum time delay"))
         end
 
-        domain = (t_delay_min, t_delay_max) # Units should be consistent # Upper boundary sghould be the age of the universe at that redshif
-        #println(domain)
 
-        madau_fragos_proxy(z, t_delay) = madau_fragos(get_formation_redshift(z, t_delay, uc.Omega0_m, uc.Omega0_Lambda, uc.H0 * u"km/s/Mpc"), a, b, c, d)
+        madau_fragos_proxy(z, t_delay) = madau_fragos(get_formation_redshift(z, t_delay, Omega0_m, Omega0_Lambda, H0 * u"km/s/Mpc"), a, b, c, d)
 
-        f(t_delay, z) = madau_fragos_proxy(z, t_delay)*time_delay_pdf(t_delay, t_delay_max, t_delay_min)
+        f(t_delay, z) = madau_fragos_proxy(z, t_delay)*time_delay_pdf(t_delay, 10u"Gyr", t_delay_min)
 
         solution = quadgk(t_delay -> f(t_delay, z), t_delay_min, t_delay_max)[1]
 
