@@ -4,6 +4,8 @@ using ForwardDiff # these are the Julia packages that are used in this module
 using LinearAlgebra
 using LaTeXStrings
 using Base.Threads
+using Unitful
+using UnitfulAstro 
 
 
 export GMsun_over_c3, GMsun_over_c2, uGpc, GMsun_over_c2_Gpc, REarth_km, clight_kms, clightGpc, Lamt_delLam_from_Lam12,
@@ -36,7 +38,7 @@ Omega0_m = 0.3153
 
 Omega0_Lambda = 1 - Omega0_m
 
-H0 = 67.66 # km/s 1/Mpc
+H0 = 67.66u"km/s/Mpc" # km/s 1/Mpc
 
 
 ##############################################################################

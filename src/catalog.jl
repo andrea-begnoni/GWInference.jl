@@ -800,7 +800,12 @@ function GenerateCatalog(nEvents::Int, population::String; time_delay_in_Myr = 2
     chirp_mass = (m_1 .* m_2) .^ (3 / 5) ./ (m_1 .+ m_2) .^ (1 / 5)
     chirp_mass_detector_frame = chirp_mass .* (1 .+ z)
     eta = (m_1 .* m_2) ./ (m_1 .+ m_2) .^ 2
-    dL = get_dL(z, clight, H0, Omega0_m, Omega0_Lambda) ./ 1e3 # Gpc
+    if unit(H0) == u"km/s/Mpc"
+        H0_kms_Mpc = ustrip(H0) 
+        dL = get_dL(z, clight, H0_kms_Mpc, Omega0_m, Omega0_Lambda) ./ 1e3 # Gpc
+    else 
+        error("H0 should be in km/s/Mpc")
+    end
     date = Dates.now()
     date_format = string(Dates.format(date, "e dd u yyyy HH:MM:SS"))
     println("Name of the catalog: ", name_file)
@@ -936,7 +941,6 @@ end
 
 function ReadHyperparam(name_file; verbose = true)
 
-    
     params = h5open(name_file, "r") do file
         ### see HDF5.attributes
         if verbose == true
@@ -1171,7 +1175,7 @@ end
 # ---Returns---
 # primitive: the value of the primitive at z.
 
-function primitive_time_delay(z, Omega0_m = uc.Omega0_m, Omega0_Lambda = uc.Omega0_Lambda, H0=uc.H0 * u"km/s/Mpc")
+function primitive_time_delay(z, Omega0_m = uc.Omega0_m, Omega0_Lambda = uc.Omega0_Lambda, H0=uc.H0)
     k = sqrt(Omega0_m/Omega0_Lambda)*(1 .+z).^(3/2)    
     primitive = -2/(3*H0*sqrt(Omega0_Lambda)) * acsch.(k)
     return primitive
@@ -1189,7 +1193,7 @@ end
 # ---Returns---
 # z_formation: the formation redshift
 
-function get_formation_redshift(z_merger, t_delay, Omega0_m=uc.Omega0_m, Omega0_Lambda=uc.Omega0_Lambda, H0=uc.H0 * u"km/s/Mpc")
+function get_formation_redshift(z_merger, t_delay, Omega0_m=uc.Omega0_m, Omega0_Lambda=uc.Omega0_Lambda, H0=uc.H0)
     var1 = csch.((-3/2)*H0*sqrt(Omega0_Lambda)*(t_delay .+ primitive_time_delay(z_merger, Omega0_m, Omega0_Lambda, H0)))
     zplusone32 = var1.*sqrt(Omega0_Lambda/Omega0_m)
 
@@ -1208,7 +1212,7 @@ end
 # Omega0_m: the matter density
 # Omega0_Lambda: the cosmological constant density
 
-function hubble_parameter(z, H0 = uc.H0 * u"km/s/Mpc", Omega0_m = uc.Omega0_m, Omega0_Lambda=uc.Omega0_Lambda)
+function hubble_parameter(z, H0 = uc.H0, Omega0_m = uc.Omega0_m, Omega0_Lambda=uc.Omega0_Lambda)
 
     H = H0 .*sqrt.(Omega0_m .*(1 .+z).^3 .+ Omega0_Lambda)      # Friedmann's equation for a flat universe
 
@@ -1278,7 +1282,7 @@ end
 # ---Returns---
 # div: the age of the universe at redshift z expressed in Myr
 
-function how_old_universe(z, Omega0_Lambda = uc.Omega0_Lambda, Omega0_m = uc.Omega0_m, H0=uc.H0 * u"km/s/Mpc")
+function how_old_universe(z, Omega0_Lambda = uc.Omega0_Lambda, Omega0_m = uc.Omega0_m, H0=uc.H0)
     # recall a = 1/(1+z)
     domain=(0, 1/(1+z))
     Omega_0 = Omega0_m + Omega0_Lambda
@@ -1297,7 +1301,7 @@ end
 """
 Computes the merger rate density as a function of redshift, after marginalizing over the time delay between formation and merger. The merger rate density is normalized to match the LVK rate density at a reference redshift zref.
 """
-function merger_rate_td_min(t_delay_min, zref, LVK_rate_zref, a, b, c, d; Omega0_Lambda = uc.Omega0_Lambda, Omega0_m = uc.Omega0_m, H0=uc.H0 * u"km/s/Mpc")
+function merger_rate_td_min(t_delay_min, zref, LVK_rate_zref, a, b, c, d; Omega0_Lambda = uc.Omega0_Lambda, Omega0_m = uc.Omega0_m, H0=uc.H0)
 
     r = range(0, stop = 10, length=401)  # redshifts, length = 101 is necessary so that there is a row of the dataframe whose redshift is exactly 0.2
     merger_rate_td = zeros(length(r)) # merger rate density as a function of redshift, after marginalizing over time delay
@@ -1312,7 +1316,7 @@ function merger_rate_td_min(t_delay_min, zref, LVK_rate_zref, a, b, c, d; Omega0
         end
 
 
-        madau_fragos_proxy(z, t_delay) = madau_fragos(get_formation_redshift(z, t_delay, Omega0_m, Omega0_Lambda, H0 * u"km/s/Mpc"), a, b, c, d)
+        madau_fragos_proxy(z, t_delay) = madau_fragos(get_formation_redshift(z, t_delay, Omega0_m, Omega0_Lambda, H0), a, b, c, d)
 
         f(t_delay, z) = madau_fragos_proxy(z, t_delay)*time_delay_pdf(t_delay, 10u"Gyr", t_delay_min)
 
