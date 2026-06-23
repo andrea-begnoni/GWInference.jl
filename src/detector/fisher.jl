@@ -129,7 +129,7 @@ end
 
 function FisherMatrix(model::NonCBC,
     detector::Detector,
-    intrinsic_param...,
+    intrinsic_param::Tuple,
     dL::Float64,
     theta::Float64,
     phi::Float64,
@@ -152,7 +152,7 @@ function FisherMatrix(model::NonCBC,
         return FisherMatrix_internal(
             model,
             detector,
-            intrinsic_param...,
+            intrinsic_param,
             dL,
             theta,
             phi,
@@ -172,7 +172,7 @@ function FisherMatrix(model::NonCBC,
         return FisherMatrix_Tdetector(
             model,
             detector,
-            intrinsic_param...,
+            intrinsic_param,
             dL,
             theta,
             phi,
@@ -360,7 +360,7 @@ end
 
 function FisherMatrix_internal(model::NonCBC,
     detector::Detector,
-    intrinsic_param...,
+    intrinsic_param::Tuple,
     dL::Float64,
     theta::Float64,
     phi::Float64,
@@ -396,7 +396,7 @@ function FisherMatrix_internal(model::NonCBC,
         SNRval = SNR(
             model,
             detector,
-            intrinsic_param...,
+            intrinsic_param,
             dL,
             theta,
             phi,
@@ -640,7 +640,7 @@ end
 
 function FisherMatrix(model::NonCBC,
     detector::Vector{Detector},
-    intrinsic_param...,
+    intrinsic_param::Tuple,
     dL::Float64,
     theta::Float64,
     phi::Float64,
@@ -665,7 +665,7 @@ function FisherMatrix(model::NonCBC,
         SNRval = SNR(
             model,
             detector,
-            intrinsic_param...,
+            intrinsic_param,
             dL,
             theta,
             phi,
@@ -694,7 +694,7 @@ function FisherMatrix(model::NonCBC,
             F = FisherMatrix_internal(
                 model,
                 detector[i],
-                intrinsic_param...,
+                intrinsic_param,
                 dL,
                 theta,
                 phi,
@@ -713,7 +713,7 @@ function FisherMatrix(model::NonCBC,
             F = FisherMatrix_Tdetector(
                 model,
                 detector[i],
-                intrinsic_param...,
+                intrinsic_param,
                 dL,
                 theta,
                 phi,
@@ -933,7 +933,7 @@ end
 
 function FisherMatrix_Tdetector(model::NonCBC,
     detector::Detector,
-    intrinsic_param...,
+    intrinsic_param::Tuple,
     dL::Float64,
     theta::Float64,
     phi::Float64,
@@ -959,7 +959,7 @@ function FisherMatrix_Tdetector(model::NonCBC,
         SNRval = SNR(
             model,
             detector,
-            intrinsic_param...,
+            intrinsic_param,
             dL,
             theta,
             phi,
@@ -1018,7 +1018,7 @@ function FisherMatrix_Tdetector(model::NonCBC,
     F1 = FisherMatrix_internal(
         model,
         ET1,
-        intrinsic_param...,
+        intrinsic_param,
         dL,
         theta,
         phi,
@@ -1036,7 +1036,7 @@ function FisherMatrix_Tdetector(model::NonCBC,
     F2 = FisherMatrix_internal(
         model,
         ET2,
-        intrinsic_param...,
+        intrinsic_param,
         dL,
         theta,
         phi,
@@ -1054,7 +1054,7 @@ function FisherMatrix_Tdetector(model::NonCBC,
     F3 = FisherMatrix_internal(
         model,
         ET3,
-        intrinsic_param...,
+        intrinsic_param,
         dL,
         theta,
         phi,
@@ -1346,7 +1346,7 @@ end
 
 function FisherMatrix(model::NonCBC,
     detector::Union{Detector, Vector{Detector}},
-    intrinsic_param...,
+    intrinsic_param::Tuple,
     dL::AbstractArray,
     theta::AbstractArray,
     phi::AbstractArray,
@@ -1369,25 +1369,33 @@ function FisherMatrix(model::NonCBC,
 
     nPar = _npar(model)
 
-    # restructure the intrinsic parameter
-    intrinsic_param_reshaped = Array{Vector{Float64}}(undef, nEvents)
-    for ii in 1:nEvents  
-        intrinsic_param_ii = []
-        for op in intrinsic_param
-            append!(intrinsic_param_ii, op[ii])
+    #check correct length of optional_parameters
+    for op in intrinsic_param
+        if length(op) != nEvents
+            throw(DomainError(op, "Length of each intrinsic parameter must be a vectors with the same length as the number of events!"))
         end
-        intrinsic_param_reshaped[ii] = intrinsic_param_ii
     end
+    # restructure the intrinsic parameter
+    # intrinsic_param_reshaped = Array{Vector{Float64}}(undef, nEvents)
+    # for ii in 1:nEvents  
+    #     intrinsic_param_ii = []
+    #     for op in intrinsic_param
+    #         append!(intrinsic_param_ii, op[ii])
+    #     end
+    #     intrinsic_param_reshaped[ii] = intrinsic_param_ii
+    # end
+
 
     Fishers = Array{Float64}(undef, nEvents, nPar, nPar)
     if return_SNR == true
         SNRs = Array{Float64}(undef, nEvents)
         elapsed_time = @elapsed @showprogress desc="Computing Fishers and SNRs..." @threads for ii in 1:nEvents  
+            intrinsic_param_ii = tuple([op[ii] for op in intrinsic_param]...)
 
             Fishers[ii,:,:], SNRs[ii] = FisherMatrix(
                 model,
                 detector, 
-                intrinsic_param_reshaped[ii]...,
+                intrinsic_param_ii,
                 dL[ii], 
                 theta[ii], 
                 phi[ii], 
@@ -1449,11 +1457,13 @@ function FisherMatrix(model::NonCBC,
         return Fishers, SNRs
     else
         elapsed_time = @elapsed  @showprogress desc="Computing Fishers..."  @threads for ii in 1:nEvents  
+            
+                    intrinsic_param_ii = tuple([op[ii] for op in intrinsic_param]...)   
 
                     Fishers[ii,:,:]=FisherMatrix(
                         model,
                         detector,
-                        intrinsic_param_reshaped[ii]...,
+                        intrinsic_param_ii,
                         dL[ii],
                         theta[ii],
                         phi[ii], 

@@ -104,7 +104,7 @@ Compute the amplitude of the GW signal projected on the detector tensor for each
     Example: 
         ToDo: need example
 """
-function PolarizationDet(model::Model,
+function PolarizationDet(model::CBC,
     DetectorCoordinates::DetectorStructure,
     pol::AbstractArray,
     f::AbstractArray,
@@ -201,7 +201,7 @@ end
 """
 Need documentation 
 """
-function PolarizationDet(model::Model,
+function PolarizationDet(model::CBC,
     DetectorCoordinates::DetectorStructure,
     f::AbstractArray,
     mc,
@@ -291,13 +291,14 @@ end
 function PolarizationDet(model::NonCBC,
     DetectorCoordinates::DetectorStructure,
     f::AbstractArray,
-    intrinsic_param_tuple::Tuple,
+    intrinsic_param_tuple, #::Tuple,
     dL,
     theta,
     phi,
     iota,
     psi,
-    tcoal;
+    tcoal,
+    optional_param... ;
     alpha = 0.0,
     useEarthMotion = false
 )
@@ -316,7 +317,7 @@ function PolarizationDet(model::NonCBC,
         DetectorCoordinates,
         pol,
         f,
-        intrinsic_param_tuple...,
+        #intrinsic_param_tuple,
         theta,
         phi,
         psi,
@@ -364,7 +365,7 @@ This function computes the phase of the waveform seen by the detector, given a w
 
 """
 function PhaseDet(
-    model::Model,
+    model::CBC,
     DetectorCoordinates::DetectorStructure,
     f::AbstractArray,
     mc,
@@ -393,11 +394,29 @@ function PhaseDet(
 
 end
 
+function PhaseDet(
+    model::NonCBC,
+    DetectorCoordinates::DetectorStructure,
+    f::AbstractArray,
+    theta,
+    phi,
+    tcoal,
+    phiCoal;
+    useEarthMotion = false,
+)
+
+
+    phiD = (2.0 * pi .* f) .* _deltLoc(theta, phi, tcoal, DetectorCoordinates) # phase due to Earth motion
+
+    return @. 2.0 * pi * (tcoal * 3600.0 * 24.0) .* f .- phiCoal  .+ phiD #.- Phi
+
+
+end
 
 """
 ToDo: Documentation
 """
-function Strain(model::Model,
+function Strain(model::CBC,
     DetectorCoordinates::DetectorStructure,
     pol::AbstractArray,
     phase::AbstractArray,
@@ -417,6 +436,33 @@ function Strain(model::Model,
         f,
         mc,
         eta,
+        theta,
+        phi,
+        tcoal,
+        phiCoal,
+        useEarthMotion = useEarthMotion
+    )
+        
+    return sum(pol) .* exp.(1im .* (phase_det .- phase))
+
+end
+
+function Strain(model::NonCBC,
+    DetectorCoordinates::DetectorStructure,
+    pol::AbstractArray,
+    phase::AbstractArray,
+    f::AbstractArray,
+    theta,
+    phi,
+    tcoal,
+    phiCoal;
+    useEarthMotion = false
+)
+
+    phase_det = PhaseDet(
+        model,
+        DetectorCoordinates,
+        f,
         theta,
         phi,
         tcoal,
@@ -537,7 +583,7 @@ function Strain(model::GrModel,
 
 end
 
-function Strain(model::Model,
+function Strain(model::CBC,
     DetectorCoordinates::DetectorStructure,
     f::AbstractArray,
     mc,
@@ -593,6 +639,64 @@ function Strain(model::Model,
         f,
         mc,
         eta,
+        theta,
+        phi,
+        tcoal,
+        phiCoal,
+        useEarthMotion = useEarthMotion
+    )
+        
+    return strain_det
+
+end
+
+
+function Strain(model::NonCBC,
+    DetectorCoordinates::DetectorStructure,
+    f::AbstractArray,
+    intrinsic_param,
+    dL,
+    theta,
+    phi,
+    iota,
+    psi,
+    tcoal,
+    phiCoal,
+    optional_param...;
+    useEarthMotion = false,
+    alpha = 0.0
+)
+
+    pol_det = PolarizationDet(
+        model,
+        DetectorCoordinates,
+        f,
+        intrinsic_param,
+        dL,
+        theta,
+        phi,
+        iota,
+        psi,
+        tcoal,
+        optional_param...,
+        alpha = alpha,
+        useEarthMotion = useEarthMotion
+    )
+
+    phase_wave = Phi(
+        model,
+        f,
+        intrinsic_param...,
+        iota,
+        optional_param...,
+    )
+
+    strain_det = Strain(
+        model,
+        DetectorCoordinates,
+        pol_det,
+        phase_wave,
+        f,
         theta,
         phi,
         tcoal,

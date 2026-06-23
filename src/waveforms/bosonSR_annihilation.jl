@@ -1,9 +1,11 @@
-include("../../bosonSR_repo/Annihilation.jl")
+include("../../bosonSR_repo_/chris/julia_wf/annihilation.jl")
+include("../../bosonSR_repo_/chris/julia_wf/level_transition.jl")
+
 
 function PolAbs(model::BosonSR_ann,
     f::AbstractVector,
-    p1, # mass ratio
-    p2, # alpha
+    M_solar_ann, 
+    mua_ann, 
     dL,
     iota;
 )
@@ -12,8 +14,8 @@ function PolAbs(model::BosonSR_ann,
     amp = Ampl(
         model,
         f,
-        p1,
-        p2,
+        M_solar_ann,
+        mua_ann,
         dL
     )
 
@@ -33,8 +35,8 @@ ToDo: Need documentation
 """
 function Pol(model::BosonSR_ann,
     f::AbstractVector,
-    p1,
-    p2,
+    M_solar_ann, 
+    mua_ann,
     dL,
     iota
 )
@@ -42,8 +44,8 @@ function Pol(model::BosonSR_ann,
     hp, hc = PolAbs(
         model,
         f,
-        p1,
-        p2,
+        M_solar_ann,
+        mua_ann,
         dL,
         iota
     )
@@ -56,20 +58,18 @@ end
 
 function Phi(model::BosonSR_ann,
     f::AbstractVector,
-    p1, # mass ratio
-    p2; # alpha
-    GMsun_over_c3 = uc.GMsun_over_c3,
-    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+    M_solar_ann, 
+    mua_ann,
+    GMsun_over_c3 = uc.GMsun_over_c3, # not used in this function but included for consistency
+    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc, # not used in this function but included for consistency
 )
 
     # is omega in Hz?
     omega = 2pi * f
-    M = p1
-    mua_ann = p2 # in GeV
-    alpha_ann = G*M_ann_*mua_ann*M_sun
+
     n = 4
-    m = l = n-1
-    r = 1
+    dL_kpc = dL * 1e6
+
     phase = angle.(h_ann(omega, M, n, l, alpha, r))
 
 
