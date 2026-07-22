@@ -67,3 +67,5 @@ using Test
 
     @test isapprox(errorsHM, errors_tabulatedHM, rtol = 1e-8)
 end
+
+include("test_phenomxphm.jl")

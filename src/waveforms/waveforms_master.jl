@@ -12,10 +12,11 @@ using DelimitedFiles
 using Interpolations
 using ForwardDiff
 using Roots
+using Elliptic
 using LinearAlgebra
 
 
-export TaylorF2, PhenomD, PhenomD_NRTidal, PhenomHM, PhenomNSBH, PhenomXAS, PhenomXHM, PhenomD_TIGER, PhenomHM_TIGER, PhenomD_TIGER_spinless, PhenomHM_TIGER_spinless
+export TaylorF2, PhenomD, PhenomD_NRTidal, PhenomHM, PhenomNSBH, PhenomXAS, PhenomXHM, PhenomXPHM, PhenomD_TIGER, PhenomHM_TIGER, PhenomD_TIGER_spinless, PhenomHM_TIGER_spinless
 export Model, GrModel, BgrModel
 export Ampl, Phi, PolAbs, Pol, _npar, _event_type, _available_waveforms, _fcut, _finalspin, _radiatednrg, _tau_star, _list_polarizations, hphc
 
@@ -146,6 +147,11 @@ struct PhenomXHM <: GrModel
     PhenomXHM() = new("BBH")
 end
 
+struct PhenomXPHM <: GrModel
+    event_type::String
+    PhenomXPHM() = new("BBH")
+end
+
 struct TaylorF2 <: GrModel 
     event_type::String 
     TaylorF2(event_type::String = "BBH") = new(event_type)
@@ -184,7 +190,7 @@ function _event_type(model::Model)
 end
 
 function _available_waveforms()
-    return ["TaylorF2", "PhenomD", "PhenomHM", "PhenomD_NRTidal", "PhenomNSBH", "PhenomXAS", "PhenomXHM", "PhenomD_TIGER", "PhenomHM_TIGER", "PhenomD_TIGER_spinless", "PhenomHM_TIGER_spinless"]
+    return ["TaylorF2", "PhenomD", "PhenomHM", "PhenomD_NRTidal", "PhenomNSBH", "PhenomXAS", "PhenomXHM", "PhenomXPHM", "PhenomD_TIGER", "PhenomHM_TIGER", "PhenomD_TIGER_spinless", "PhenomHM_TIGER_spinless"]
 end
 
 #@doc "Function to check the available waveforms and return the corresponding model."
@@ -207,8 +213,10 @@ function _available_waveforms(waveform::String)
         return PhenomXAS()
     elseif waveform == "PhenomXHM"
         return PhenomXHM()
+    elseif waveform == "PhenomXPHM"
+        return PhenomXPHM()
     else
-        error("Waveform not available. Choose between: TaylorF2, PhenomD, PhenomHM, PhenomD_NRTidal, PhenomNSBH, PhenomXAS")
+        error("Waveform not available. Choose between: $(_available_waveforms())")
     end
 end
 ##############################################################################
@@ -223,6 +231,7 @@ include("PhenomD_NRTidalv2.jl")
 include("PhenomNSBH.jl")
 include("PhenomXAS.jl")
 include("PhenomXHM.jl")
+include("PhenomXPHM.jl")
 include("ConnectionFunctionsXAS.jl") # This is needed for PhenomXHM
 
 #Beyond GR waveforms
@@ -723,6 +732,10 @@ Returns the number of parameter of a struct<:Model as integer number.
 """
 function _npar(model::PhenomXHM)
     return 11
+end
+
+function _npar(model::PhenomXPHM)
+    return 15
 end
 
 function Phi(model::PhenomXHM, f, mc, eta, chi1, chi2, Lambda1, Lambda2; GMsun_over_c3 = uc.GMsun_over_c3)

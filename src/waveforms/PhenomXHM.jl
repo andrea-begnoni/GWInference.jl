@@ -237,7 +237,9 @@ function RD_Phase_Ansatz(model::PhenomXHM, ff, alpha0, alpha2, alphaL, fring, fd
 end
 
 function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
-                debug=false, fcutPar = 0.3, GMsun_over_c3 = uc.GMsun_over_c3, GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc)
+                debug=false, return_modes=false, final_spin_override=nothing,
+                fRef=nothing,
+                fcutPar = 0.3, GMsun_over_c3 = uc.GMsun_over_c3, GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc)
 
 
     M = mc / (eta^(0.6))
@@ -327,7 +329,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
     dphase0     = 5.0 / (128.0 * pi^(5. ./3.))
     Ampzero = 0
 
-    fRef      = f_min
+    fRef      = isnothing(fRef) ? f_min : fRef
     MfRef = fRef * M * GMsun_over_c3 
     phi0 = 0.0
 
@@ -340,6 +342,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
 
     fMECO    = (((0.018744340279608845 + 0.0077903147004616865*eta + 0.003940354686136861*eta2 - 0.00006693930988501673*eta2*eta)/(1. - 0.10423384680638834*eta)) + ((chiPN*(0.00027180386951683135 - 0.00002585252361022052*chiPN + eta2*eta2*(-0.0006807631931297156 + 0.022386313074011715*chiPN - 0.0230825153005985*chiPN2) + eta2*(0.00036556167661117023 - 0.000010021140796150737*chiPN - 0.00038216081981505285*chiPN2) + eta*(0.00024422562796266645 - 0.00001049013062611254*chiPN - 0.00035182990586857726*chiPN2) + eta2*eta*(-0.0005418851224505745 + 0.000030679548774047616*chiPN + 4.038390455349854e-6*chiPN2) - 0.00007547517256664526*chiPN2))/(0.026666543809890402 + (-0.014590539285641243 - 0.012429476486138982*eta + 1.4861197211952053*eta2*eta2 + 0.025066696514373803*eta2 + 0.005146809717492324*eta2*eta)*chiPN + (-0.0058684526275074025 - 0.02876774751921441*eta - 2.551566872093786*eta2*eta2 - 0.019641378027236502*eta2 - 0.001956646166089053*eta2*eta)*chiPN2 + (0.003507640638496499 + 0.014176504653145768*eta + 1. *eta2*eta2 + 0.012622225233586283*eta2 - 0.00767768214056772*eta2*eta)*chiPN2*chiPN)) + (dchi*dchi*(0.00034375176678815234 + 0.000016343732281057392*eta)*eta2 + dchi*Seta*eta*(0.08064665214195679*eta2 + eta*(-0.028476219509487793 - 0.005746537021035632*chiPN) - 0.0011713735642446144*chiPN)))
     afinal   = (((3.4641016151377544*eta + 20.0830030082033*eta2 - 12.333573402277912*eta2*eta)/(1 + 7.2388440419467335*eta)) + ((m1ByMSq + m2ByMSq)*totchi + ((-0.8561951310209386*eta - 0.09939065676370885*eta2 + 1.668810429851045*eta2*eta)*totchi + (0.5881660363307388*eta - 2.149269067519131*eta2 + 3.4768263932898678*eta2*eta)*totchi2 + (0.142443244743048*eta - 0.9598353840147513*eta2 + 1.9595643107593743*eta2*eta)*totchi2*totchi) / (1 + (-0.9142232693081653 + 2.3191363426522633*eta - 9.710576749140989*eta2*eta)*totchi)) + (0.3223660562764661*dchi*Seta*(1 + 9.332575956437443*eta)*eta2 - 0.059808322561702126*dchi*dchi*eta2*eta + 2.3170397514509933*dchi*Seta*(1 - 3.2624649875884852*eta)*eta2*eta*totchi))
+    afinal = isnothing(final_spin_override) ? afinal : final_spin_override
     Erad   = ((((0.057190958417936644*eta + 0.5609904135313374*eta2 - 0.84667563764404*eta2*eta + 3.145145224278187*eta2*eta2)*(1. + (-0.13084389181783257 - 1.1387311580238488*eta + 5.49074464410971*eta2)*totchi + (-0.17762802148331427 + 2.176667900182948*eta2)*totchi2 + (-0.6320191645391563 + 4.952698546796005*eta - 10.023747993978121*eta2)*totchi*totchi2)) / (1. + (-0.9919475346968611 + 0.367620218664352*eta + 4.274567337924067*eta2)*totchi)) + (- 0.09803730445895877*dchi*Seta*(1. - 3.2283713377939134*eta)*eta2 + 0.01118530335431078*dchi*dchi*eta2*eta - 0.01978238971523653*dchi*Seta*(1. - 4.91667749015812*eta)*eta*totchi))
     Mfinal = 1. - Erad
 
@@ -377,8 +380,10 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
     ### 22 mode
 
     
-    Phase22 = Phase_22_ConnectionCoefficients(mc, eta, chi1, chi2)
-    Amp22 = Ampl_22_ConnectionCoefficients(mc, eta, chi1, chi2, dL)
+    Phase22 = Phase_22_ConnectionCoefficients(mc, eta, chi1, chi2;
+                                              final_spin_override=final_spin_override)
+    Amp22 = Ampl_22_ConnectionCoefficients(mc, eta, chi1, chi2, dL;
+                                            final_spin_override=final_spin_override)
 
     psi4tostrain = ((13.39320482758057 - 175.42481512989315*eta + 2097.425116152503*eta2 - 9862.84178637907*eta2*eta + 16026.897939722587*eta2*eta2) + ((4.7895602776763 - 163.04871764530466*eta + 609.5575850476959*eta2)*totchi + (1.3934428041390161 - 97.51812681228478*eta + 376.9200932531847*eta2)*totchi2 + (15.649521097877374 + 137.33317057388916*eta - 755.9566456906406*eta2)*totchi2*totchi + (13.097315867845788 + 149.30405703643288*eta - 764.5242164872267*eta2)*totchi2*totchi2) + (105.37711654943146*dchi*Seta*eta2))
     DeltaT =  -2. *pi*(500+psi4tostrain);
@@ -390,7 +395,10 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
     
     
     phase_22    =  etaInv .*_completePhase(model, fgrid, Phase22, fdamp_22, fring_22) .+ ifelse.(fgrid .<= fcutPar, timeshift .*fgrid .+ lina .+ phifRef, 0.)
-    ampl_22 = Ampl(PhenomXAS(), f, mc, eta, chi1, chi2, dL) 
+    ampl_22 = Ampl(PhenomXAS(), f, mc, eta, chi1, chi2, dL;
+                   fcutPar=fcutPar, GMsun_over_c3=GMsun_over_c3,
+                   GMsun_over_c2_Gpc=GMsun_over_c2_Gpc,
+                   final_spin_override=final_spin_override)
 
     if debug == true
         for j in 1:len
@@ -409,6 +417,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
 
     htildelm =  @. -1. *ampl_22 * exp(1im * phase_22) /factor_22 
     wf22 = - htildelm
+    coprecessing_modes = return_modes ? Dict{Tuple{Int,Int},typeof(htildelm)}((2, -2) => copy(htildelm)) : nothing
 
     ### First calculate the 22 mode
     hp = Vector{Complex{typeofFD}}(undef, len) #initialize the vector
@@ -2552,6 +2561,10 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
             println()
         end
 
+        if return_modes
+            coprecessing_modes[(ell, -emm)] = copy(htildelm__)
+        end
+
         IMRPhenomXHMFDAddMode(htildelm__); #// add both positive and negative modes
 
         if debug ==true && ell_emm == 21
@@ -2620,7 +2633,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
 
 
 
-    return hp, hc
+    return return_modes ? coprecessing_modes : (hp, hc)
 end
 
 
@@ -2653,6 +2666,3 @@ function TimeShift_22(model, eta, Seta, totchi, dchi, fring_22, fdamp_22, Phase2
     return tshift
 
 end
-
-
-

@@ -8,7 +8,8 @@ function Phase_22_ConnectionCoefficients(mc,
     GMsun_over_c3= uc.GMsun_over_c3,
     fInsJoin_PHI = 0.018,
     InsPhaseVersion=104,
-    IntPhaseVersion=105
+    IntPhaseVersion=105,
+    final_spin_override=nothing
 )  
     
 
@@ -61,11 +62,14 @@ function Phase_22_ConnectionCoefficients(mc,
 
     # Compute final spin and radiated energy
     aeff   = (((3.4641016151377544*eta + 20.0830030082033*eta2 - 12.333573402277912*eta2*eta)/(1 + 7.2388440419467335*eta)) + ((m1ByMSq + m2ByMSq)*totchi + ((-0.8561951310209386*eta - 0.09939065676370885*eta2 + 1.668810429851045*eta2*eta)*totchi + (0.5881660363307388*eta - 2.149269067519131*eta2 + 3.4768263932898678*eta2*eta)*totchi2 + (0.142443244743048*eta - 0.9598353840147513*eta2 + 1.9595643107593743*eta2*eta)*totchi2*totchi) / (1 + (-0.9142232693081653 + 2.3191363426522633*eta - 9.710576749140989*eta2*eta)*totchi)) + (0.3223660562764661*dchi*Seta*(1 + 9.332575956437443*eta)*eta2 - 0.059808322561702126*dchi*dchi*eta2*eta + 2.3170397514509933*dchi*Seta*(1 - 3.2624649875884852*eta)*eta2*eta*totchi))
+    aeff_nonprec = aeff
+    aeff = isnothing(final_spin_override) ? aeff : final_spin_override
     Erad   = ((((0.057190958417936644*eta + 0.5609904135313374*eta2 - 0.84667563764404*eta2*eta + 3.145145224278187*eta2*eta2)*(1. + (-0.13084389181783257 - 1.1387311580238488*eta + 5.49074464410971*eta2)*totchi + (-0.17762802148331427 + 2.176667900182948*eta2)*totchi2 + (-0.6320191645391563 + 4.952698546796005*eta - 10.023747993978121*eta2)*totchi*totchi2)) / (1. + (-0.9919475346968611 + 0.367620218664352*eta + 4.274567337924067*eta2)*totchi)) + (- 0.09803730445895877*dchi*Seta*(1. - 3.2283713377939134*eta)*eta2 + 0.01118530335431078*dchi*dchi*eta2*eta - 0.01978238971523653*dchi*Seta*(1. - 4.91667749015812*eta)*eta*totchi))
     # Compute ringdown and damping frequencies from fits
     fring = ((0.05947169566573468 - 0.14989771215394762*aeff + 0.09535606290986028*aeff*aeff + 0.02260924869042963*aeff*aeff*aeff - 0.02501704155363241*aeff*aeff*aeff*aeff - 0.005852438240997211*(aeff^5) + 0.0027489038393367993*(aeff^6) + 0.0005821983163192694*(aeff^7))/(1 - 2.8570126619966296*aeff + 2.373335413978394*aeff*aeff - 0.6036964688511505*aeff*aeff*aeff*aeff + 0.0873798215084077*(aeff^6)))/(1. - Erad)
     fdamp = ((0.014158792290965177 - 0.036989395871554566*aeff + 0.026822526296575368*aeff*aeff + 0.0008490933750566702*aeff*aeff*aeff - 0.004843996907020524*aeff*aeff*aeff*aeff - 0.00014745235759327472*(aeff^5) + 0.0001504546201236794*(aeff^6))/(1 - 2.5900842798681376*aeff + 1.8952576220623967*aeff*aeff - 0.31416610693042507*aeff*aeff*aeff*aeff + 0.009002719412204133*(aeff^6)))/(1. - Erad)
     
+    aeff = aeff_nonprec
     # Fitting function for hybrid minimum energy circular orbit (MECO) function and computation of ISCO frequency
     Z1tmp = 1. + cbrt((1. - aeff*aeff) ) * (cbrt(1. + aeff) + cbrt(1. - aeff))
     Z1tmp = ifelse(Z1tmp>3., 3., Z1tmp)
@@ -687,6 +691,7 @@ function Ampl_22_ConnectionCoefficients(
     IntAmpVersion=104,
     GMsun_over_c3= uc.GMsun_over_c3,
     GMsun_over_c2_Gpc= uc.GMsun_over_c2_Gpc,
+    final_spin_override=nothing,
 
 )
     """
@@ -778,6 +783,8 @@ function Ampl_22_ConnectionCoefficients(
             totchi
         )
     )
+    aeff_nonprec = aeff
+    aeff = isnothing(final_spin_override) ? aeff : final_spin_override
     Erad = (
         (
             (
@@ -846,6 +853,7 @@ function Ampl_22_ConnectionCoefficients(
             )
         ) / (1.0 - Erad)
 
+    aeff = aeff_nonprec
     # Fitting function for hybrid minimum energy circular orbit (MECO) function and computation of ISCO frequency
     Z1tmp = 1.0 + cbrt((1.0 - aeff * aeff)) * (cbrt(1.0 + aeff) + cbrt(1.0 - aeff))
     Z1tmp = ifelse(Z1tmp > 3.0, 3.0, Z1tmp)
