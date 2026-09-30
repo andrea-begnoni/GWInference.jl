@@ -13,6 +13,10 @@ Main features:
 - Analyze the results and obtain the errors on the parameters of the binary
 - Very fast, it takes less than a second to compute the Fisher Matrix, independently of the waveform model and the detector(s) configuration
 
+## Authors
+- Andrea Begnoni (UIB) main developer
+- Joachim Pomper (Unipi) developer
+
 ## Where to start?
 
 After the installation there is an extensive tutorial called `easy_GWJulia.ipynb`, we leave to it the description of all the features available in the code.
@@ -90,4 +94,4 @@ If you use this code in your work, please cite:
 
 ### Contacts
 
-If you need any help, feel free to contact andrea.begnoni@phd.unipd.it
+If you need any help, feel free to contact andrea.begnoni@uib.es
