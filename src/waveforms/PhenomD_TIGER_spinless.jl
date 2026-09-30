@@ -173,6 +173,7 @@ function Phi(model::PhenomD_TIGER_spinless,
     fInsJoin_PHI = 0.018,
     fcutPar = 0.2,
     GMsun_over_c3 = uc.GMsun_over_c3,
+    interpolation = false,
 )
     # find the PN order
     PNorder_available = [-1, 0, 0.5, 1, 1.5, 2, 2.5, log(2.5), 3, log(3.), 3.5] # actually 2.5 can't be used due to degeneracy with phiCoal
@@ -220,18 +221,6 @@ function Phi(model::PhenomD_TIGER_spinless,
     end
 
 
-    # Get the path to the directory of this file
-    PACKAGE_DIR = @__DIR__
-
-    # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
-    PARENT_DIR = dirname(dirname(PACKAGE_DIR))
-    
-    # Construct the path to the "useful_files" folder from the parent directory
-    USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
-
-    QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
-    QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
-    QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
 
 
     M = mc / (eta^(0.6))
@@ -261,9 +250,26 @@ function Phi(model::PhenomD_TIGER_spinless,
     # Compute final spin and radiated energy
     aeff = _finalspin(model, eta, chi1, chi2)
     Erad = _radiatednrg(model, eta, chi1, chi2)
-    # Compute ringdown and damping frequencies from interpolators
-    fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
-    fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    # Compute ringdown and damping frequencies
+    if interpolation == true
+        # Get the path to the directory of this file
+        PACKAGE_DIR = @__DIR__
+
+        # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
+        PARENT_DIR = dirname(dirname(PACKAGE_DIR))
+        
+        # Construct the path to the "useful_files" folder from the parent directory
+        USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
+
+        QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
+        QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
+        QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
+        fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
+        fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    else
+        fring = ((0.05947169566573468 - 0.14989771215394762*aeff + 0.09535606290986028*aeff*aeff + 0.02260924869042963*aeff*aeff*aeff - 0.02501704155363241*aeff*aeff*aeff*aeff - 0.005852438240997211*(aeff^5) + 0.0027489038393367993*(aeff^6) + 0.0005821983163192694*(aeff^7))/(1 - 2.8570126619966296*aeff + 2.373335413978394*aeff*aeff - 0.6036964688511505*aeff*aeff*aeff*aeff + 0.0873798215084077*(aeff^6)))/(1. - Erad)
+        fdamp = ((0.014158792290965177 - 0.036989395871554566*aeff + 0.026822526296575368*aeff*aeff + 0.0008490933750566702*aeff*aeff*aeff - 0.004843996907020524*aeff*aeff*aeff*aeff - 0.00014745235759327472*(aeff^5) + 0.0001504546201236794*(aeff^6))/(1 - 2.5900842798681376*aeff + 1.8952576220623967*aeff*aeff - 0.31416610693042507*aeff*aeff*aeff*aeff + 0.009002719412204133*(aeff^6)))/(1. - Erad)
+    end
 
     # Compute sigma coefficients appearing in arXiv:1508.07253 eq. (28)
     # They derive from a fit, whose numerical coefficients are in arXiv:1508.07253 Tab. 5
@@ -410,7 +416,7 @@ function Phi(model::PhenomD_TIGER_spinless,
     #     ) #variable to be used later
     TF2_6coeff_tmp =
         (11583.231236531 / 4.694215680 - 640.0 / 3.0 * pi2 -
-        684.8 / 2.1 * MathConstants.eulergamma +
+        684.8 / 2.1 * 0.5772156649015  +
         eta * (-15737.765635 / 3.048192 + 225.5 / 1.2 * pi2) +
         eta2 * 76.055 / 1.728 - eta2 * eta * 127.825 / 1.296 - log(4.0) * 684.8 / 2.1 ) * (1+deltaV6) +
         pi * chi1 * m1ByM * (1490.0 / 3.0 + m1ByM * 260.0) +
@@ -644,7 +650,8 @@ function Phi(model::PhenomD_TIGER_spinless,
         ) * etaInv
 
     # LAL sets fRef as the minimum frequency, do the same
-    fRef = fgrid[1] 
+    #fRef = fgrid[1] 
+    fRef = minimum(fgrid)
 
     phiRef = ifelse(
         fRef < fInsJoin,
@@ -785,6 +792,7 @@ function Ampl(model::PhenomD_TIGER_spinless,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+    interpolation = false,
 )
 
     # find the PN order
@@ -796,18 +804,6 @@ function Ampl(model::PhenomD_TIGER_spinless,
     
 
 
-    # Get the path to the directory of this file
-    PACKAGE_DIR = @__DIR__
-
-    # Go two steps back in the path (from ""GW.jl/src/waveforms" to "GW.jl")
-    PARENT_DIR = dirname(dirname(PACKAGE_DIR))
-    
-    # Construct the path to the "useful_files" folder from the parent directory
-    USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
-
-    QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
-    QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
-    QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
 
     # Useful quantities
     M = mc / (eta^(3.0 / 5.0))
@@ -827,9 +823,26 @@ function Ampl(model::PhenomD_TIGER_spinless,
     # Compute final spin and radiated energy
     aeff = _finalspin(model, eta, chi1, chi2)
     Erad = _radiatednrg(model, eta, chi1, chi2)
-    # Compute ringdown and damping frequencies from interpolators
-    fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
-    fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    # Compute ringdown and damping frequencies
+    if interpolation == true
+        # Get the path to the directory of this file
+        PACKAGE_DIR = @__DIR__
+
+        # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
+        PARENT_DIR = dirname(dirname(PACKAGE_DIR))
+        
+        # Construct the path to the "useful_files" folder from the parent directory
+        USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
+
+        QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
+        QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
+        QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
+        fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
+        fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    else
+        fring = ((0.05947169566573468 - 0.14989771215394762*aeff + 0.09535606290986028*aeff*aeff + 0.02260924869042963*aeff*aeff*aeff - 0.02501704155363241*aeff*aeff*aeff*aeff - 0.005852438240997211*(aeff^5) + 0.0027489038393367993*(aeff^6) + 0.0005821983163192694*(aeff^7))/(1 - 2.8570126619966296*aeff + 2.373335413978394*aeff*aeff - 0.6036964688511505*aeff*aeff*aeff*aeff + 0.0873798215084077*(aeff^6)))/(1. - Erad)
+        fdamp = ((0.014158792290965177 - 0.036989395871554566*aeff + 0.026822526296575368*aeff*aeff + 0.0008490933750566702*aeff*aeff*aeff - 0.004843996907020524*aeff*aeff*aeff*aeff - 0.00014745235759327472*(aeff^5) + 0.0001504546201236794*(aeff^6))/(1 - 2.5900842798681376*aeff + 1.8952576220623967*aeff*aeff - 0.31416610693042507*aeff*aeff*aeff*aeff + 0.009002719412204133*(aeff^6)))/(1. - Erad)
+    end
     # Compute coefficients gamma appearing in arXiv:1508.07253 eq. (19), the numerical coefficients are in Tab. 5
     xi2 = xi * xi
     gamma1 =
