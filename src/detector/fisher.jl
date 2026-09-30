@@ -4,7 +4,7 @@ This function computes the Fisher Matrix for a single detector, given the parame
 To do the computation it uses the function FisherMatrix_internal(...) for L-shaped detectors and FisherMatrix_Tdetector(...) for T-shaped detectors.
 Thus it is a wrapper function that calls the correct function depending on the shape of the detector. More information on the Fisher Matrix computation can be found in the documentation of FisherMatrix_internal(...) and FisherMatrix_Tdetector(...).
 
-    FisherMatrix(model, detector , mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal, Lambda1=0.0, Lambda2=0.0, res=1000, useEarthMotion=false, alpha=0.0, rho_thres=12., fmin=2., fmax=nothing, coordinate_shift=true, return_SNR=false)
+    FisherMatrix(model, detector , mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal, Lambda1=0.0, Lambda2=0.0, res=1000, useEarthMotion=false, alpha=0.0, SNR_thres=12., fmin=2., fmax=nothing, coordinate_shift=true, return_SNR=false)
 
     #### Input arguments:
     -  `model` : structure, containing the waveform model
@@ -27,7 +27,7 @@ Thus it is a wrapper function that calls the correct function depending on the s
     -  `res` : int, default 1000, resolution of the frequency grid
     -  `useEarthMotion` : bool, default false, if true the Earth motion is considered during the measurement
     -  `alpha` : float, default 0.0, further rotation of the interferometer with respect to the east-west direction, needed for the triangular geometry
-    -  `rho_thres` : float, default 12., SNR threshold for the computation of the Fisher Matrix
+    -  `SNR_thres` : float, default 12., SNR threshold for the computation of the Fisher Matrix
     -  `fmin` : float, default 2.0, minimum frequency
     -  `fmax` : float, default nothing, maximum frequency, otherwise the code takes fcut (from _fcut) as fmax
     -  `coordinate_shift` : bool, default true, valid for T detectors, if true the codes shifts the coordinates of the detector from the center of the triangle to the center of the arms (more realistic scenario, recommended)
@@ -60,7 +60,7 @@ function FisherMatrix(model::Model,
     res = 1000,
     useEarthMotion::Bool = false,
     alpha = 0.0,
-    rho_thres::Union{Nothing, Float64} = 12.,
+    SNR_thres::Union{Nothing, Float64} = 12.,
     fmin::Float64=2.,
     fmax::Union{Nothing, Float64}=nothing,
     coordinate_shift::Bool = true,
@@ -87,7 +87,7 @@ function FisherMatrix(model::Model,
             tcoal,
             phiCoal,
             optional_param...,
-            rho_thres=rho_thres,
+            SNR_thres=SNR_thres,
             res = res,
             useEarthMotion = useEarthMotion,
             alpha = alpha,
@@ -112,7 +112,7 @@ function FisherMatrix(model::Model,
             tcoal,
             phiCoal,
             optional_param...,
-            rho_thres=rho_thres,
+            SNR_thres=SNR_thres,
             res = res,
             useEarthMotion = useEarthMotion,
             alpha = alpha,
@@ -150,7 +150,7 @@ function FisherMatrix_internal(model::Model,
     res = 1000,
     useEarthMotion::Bool = false,
     alpha = 0.0,
-    rho_thres::Union{Nothing, Float64} = 12.,
+    SNR_thres::Union{Nothing, Float64} = 12.,
     fmin::Float64=2.,
     fmax::Union{Nothing, Float64}=nothing,
     return_SNR::Bool = false,
@@ -189,7 +189,7 @@ function FisherMatrix_internal(model::Model,
     
     # compute SNR and procede only if it is above the threshold
     SNRval = nothing
-    if rho_thres !==nothing
+    if SNR_thres !==nothing
         SNRval = SNR(
             model,
             detector,
@@ -209,7 +209,7 @@ function FisherMatrix_internal(model::Model,
             res = res,
             #ampl_precomputation = ampl_precomputation,
         )
-        if SNRval < rho_thres
+        if SNRval < SNR_thres
             if return_SNR == true
                 return zeros(nPar, nPar), SNRval
             else
@@ -479,7 +479,7 @@ function FisherMatrix(model::Model,
     optional_param...;
     res = 1000,
     useEarthMotion::Bool = false,
-    rho_thres::Union{Nothing, Float64}=12.,
+    SNR_thres::Union{Nothing, Float64}=12.,
     alpha = 0.0,
     fmin::Float64=2.0,
     fmax::Union{Nothing, Float64} = nothing,
@@ -518,7 +518,7 @@ function FisherMatrix(model::Model,
     end
 
     SNRval = nothing
-    if rho_thres !==nothing || return_SNR == true
+    if SNR_thres !==nothing || return_SNR == true
         SNRval = SNR(
             model,
             detector,
@@ -538,7 +538,7 @@ function FisherMatrix(model::Model,
             res = res,
             useEarthMotion = useEarthMotion,
         )
-        if rho_thres !==nothing && SNRval < rho_thres
+        if SNR_thres !==nothing && SNRval < SNR_thres
             if return_SNR == true
                 return zeros(nPar, nPar), SNRval
             else
@@ -600,7 +600,7 @@ function FisherMatrix(model::Model,
                 tcoal,
                 phiCoal,
                 optional_param...,
-                rho_thres=nothing,
+                SNR_thres=nothing,
                 res = res,
                 useEarthMotion = useEarthMotion,
                 alpha = alpha,
@@ -628,7 +628,7 @@ function FisherMatrix(model::Model,
                 tcoal,
                 phiCoal,
                 optional_param...,
-                rho_thres=nothing,
+                SNR_thres=nothing,
                 res = res,
                 useEarthMotion = useEarthMotion,
                 alpha = alpha,
@@ -652,7 +652,7 @@ function FisherMatrix(model::Model,
                 tcoal,
                 phiCoal,
                 optional_param...,
-                rho_thres=nothing,
+                SNR_thres=nothing,
                 res = res,
                 useEarthMotion = useEarthMotion,
                 alpha = alpha,
@@ -692,7 +692,7 @@ function FisherMatrix_Tdetector(model::Model,
     optional_param...;
     res = 1000,
     useEarthMotion::Bool = false,
-    rho_thres::Union{Nothing, Float64}=12.,
+    SNR_thres::Union{Nothing, Float64}=12.,
     alpha = 0.0,
     fmin::Float64=2.0,
     fmax::Union{Nothing, Float64} = nothing,
@@ -709,7 +709,7 @@ function FisherMatrix_Tdetector(model::Model,
 
     SNRval = nothing
 
-    if rho_thres !== nothing
+    if SNR_thres !== nothing
 
         #Define/extract tidal diformabilites
         if _event_type(model::Model) == "BBH"
@@ -750,7 +750,7 @@ function FisherMatrix_Tdetector(model::Model,
             res = res,
             #ampl_precomputation = ampl_precomputation
         )
-        if SNRval < rho_thres
+        if SNRval < SNR_thres
             if return_SNR == true
                 return zeros(nPar, nPar), SNRval
             else
@@ -845,7 +845,7 @@ function FisherMatrix_Tdetector(model::Model,
             optional_param...,
             res = res,
             useEarthMotion = useEarthMotion,
-            rho_thres = nothing,
+            SNR_thres = nothing,
             alpha = 0.0,
             fmin=fmin,
             fmax=fmax,
@@ -868,7 +868,7 @@ function FisherMatrix_Tdetector(model::Model,
             optional_param...,
             res = res,
             useEarthMotion = useEarthMotion,
-            rho_thres = nothing,
+            SNR_thres = nothing,
             alpha = 60.0,
             fmin=fmin,
             fmax=fmax,
@@ -891,7 +891,7 @@ function FisherMatrix_Tdetector(model::Model,
             optional_param...,
             res = res,
             useEarthMotion = useEarthMotion,
-            rho_thres = nothing,
+            SNR_thres = nothing,
             alpha = 120.0,
             fmin=fmin,
             fmax=fmax,
@@ -911,7 +911,7 @@ The main function of the code, it computes the Fisher Matrix for an array of eve
 SNRs if requested and saves the results (Fisher matrices and SNRs) in a file if the optional argument `auto_save` is set to true. The file is saved in the folder `output/name_folder/Fishers_SNRs.h5`
 
 
-    FisherMatrix(model, detector, mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal,  Lambda1=0.0, Lambda2=0.0, res=1000, useEarthMotion=false, alpha=0.0, rho_thres=12., fmin=2., fmax=nothing, coordinate_shift=true, return_SNR=false)
+    FisherMatrix(model, detector, mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal,  Lambda1=0.0, Lambda2=0.0, res=1000, useEarthMotion=false, alpha=0.0, SNR_thres=12., fmin=2., fmax=nothing, coordinate_shift=true, return_SNR=false)
 
     #### Input arguments:
     -  `model` : structure, containing the waveform model
@@ -934,7 +934,7 @@ SNRs if requested and saves the results (Fisher matrices and SNRs) in a file if 
     -  `res` : int, default 1000, resolution of the frequency grid
     -  `useEarthMotion` : bool, default false, if true the Earth motion is considered during the measurement
     -  `alpha` : float, default 0.0, further rotation of the interferometer with respect to the east-west direction, needed for the triangular geometry
-    -  `rho_thres` : float, default 12., SNR threshold for the computation of the Fisher Matrix
+    -  `SNR_thres` : float, default 12., SNR threshold for the computation of the Fisher Matrix
     -  `fmin` : float, default 2.0, minimum frequency
     -  `fmax` : float, default nothing, maximum frequency, otherwise the code takes fcut (from _fcut) as fmax
     -  `coordinate_shift` : bool, default true, valid for T detectors, if true the codes shifts the coordinates of the detector from the center of the triangle to the center of the arms (more realistic scenario, recommended)
@@ -972,7 +972,7 @@ function FisherMatrix(model::Model,
     fmax::Union{Nothing, Float64, AbstractArray} = nothing,
     res = 1000,
     useEarthMotion::Bool = false,
-    rho_thres::Union{Nothing, Float64} =12.,
+    SNR_thres::Union{Nothing, Float64} =12.,
     alpha = 0.0,
     coordinate_shift::Bool = true,
     return_SNR::Bool = false,
@@ -1056,7 +1056,7 @@ function FisherMatrix(model::Model,
                 fmax= (fmax isa AbstractArray ? fmax[ii] : fmax), 
                 res = res, 
                 useEarthMotion = useEarthMotion, 
-                rho_thres=rho_thres, 
+                SNR_thres=SNR_thres, 
                 alpha = alpha, 
                 coordinate_shift = coordinate_shift, 
                 return_SNR=true,
@@ -1136,7 +1136,7 @@ function FisherMatrix(model::Model,
                         fmax= (fmax isa AbstractArray ? fmax[ii] : fmax), 
                         res = res, 
                         useEarthMotion = useEarthMotion, 
-                        rho_thres=rho_thres, 
+                        SNR_thres=SNR_thres, 
                         alpha = alpha, 
                         coordinate_shift = coordinate_shift,
                         return_SNR=false,
