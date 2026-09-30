@@ -489,9 +489,8 @@ function Phi(model::PhenomD,
     fInsJoin_PHI = 0.018,
     fcutPar = 0.2,
     GMsun_over_c3 = uc.GMsun_over_c3,
-    container = nothing,
 )
-    return Phi(model, f, mc, eta, chi1, chi2, fInsJoin_PHI=fInsJoin_PHI, fcutPar=fcutPar, GMsun_over_c3=GMsun_over_c3, container=container)
+    return Phi(model, f, mc, eta, chi1, chi2, fInsJoin_PHI=fInsJoin_PHI, fcutPar=fcutPar, GMsun_over_c3=GMsun_over_c3)
 end
 
 """ 
@@ -510,10 +509,10 @@ function Ampl(model::PhenomD,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
-    container = nothing,
+    
 )
 
-    return Ampl(model, f, mc, eta, chi1, chi2, dL, fcutPar = fcutPar, fInsJoin_Ampl = fInsJoin_Ampl, GMsun_over_c3 = GMsun_over_c3, GMsun_over_c2_Gpc = GMsun_over_c2_Gpc, container = container)
+    return Ampl(model, f, mc, eta, chi1, chi2, dL, fcutPar = fcutPar, fInsJoin_Ampl = fInsJoin_Ampl, GMsun_over_c3 = GMsun_over_c3, GMsun_over_c2_Gpc = GMsun_over_c2_Gpc)
 end
 
 ##############################################################################
@@ -1024,7 +1023,7 @@ function _fcut(model::Model, mc, eta; fcutPar = 0.2, GMsun_over_c3 = uc.GMsun_ov
         error("You need to provide also Lambda1 and Lambda2 since fcut depends on them")
     end
     if typeof(model) == TaylorF2
-        return 1. / ( 6 * pi * sqrt(6.) * GMsun_over_c3 )
+        return 1. / ( 6 * pi * sqrt(6.) * GMsun_over_c3 ) / (mc  / (eta^(0.6)))
     end
 
     return fcutPar / (mc * GMsun_over_c3 / (eta^(0.6)))

@@ -6,7 +6,11 @@ test.ipynb
 test/runtest.ipynb
 docs/build/
 src/detector_fast.jl
-src/waveforms/PhenomHM_fast.jl
+src/detector_old.jl
+easy_GWJulia_old.ipynb
+src/detector_old.jl
+src/waveform.jl
+docs/
 
 *jpmod
 *.ipynb_checkpoints/

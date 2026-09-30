@@ -1,8 +1,9 @@
-
-using GW
+# using Pkg
+# Pkg.activate("../.")
+using GWInference
 using Test
 
-@testset "GW.jl" begin
+@testset "GWInference.jl" begin
     mc = 10.
     eta = 0.20
     chi1 = 0.1
@@ -23,7 +24,7 @@ using Test
     ET = ETS
     network = [CE_1, CE_2, ET];
     snrD_network = SNR(PhenomD(), network, mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal) 
-    @test isapprox(snrD_network, 37.69523553190364, rtol = 1e-12 )             
+    @test isapprox(snrD_network, 37.695233406672514, rtol = 1e-12 )             
 
     snrHM_network = SNR(PhenomHM(), network, mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal)
     @test isapprox(snrHM_network, 37.92175372990184, rtol = 1e-12 )
@@ -33,17 +34,17 @@ using Test
     cov = CovMatrix(fisherD_network)
     errors = Errors(cov)
 
-    errors_tabulated= [0.003941783348926305
-    0.03516108811431253
-    0.6360420432561998
-    1.644391008835697
-    0.8085029521022669
-    0.03359405656156905
-    0.009880704766380628
-    0.07298583788328453
-    0.0855908247386635
-    0.008003990135235535
-    1.9969726122385671]
+    errors_tabulated= [ 0.0039419796598880825
+    0.03516266365602064
+    0.6360722185017154
+    1.644468273826038
+    0.8085036923461478
+    0.0335937819637836
+    0.009880588299760065
+    0.07298579934712374
+    0.08559078006124807
+    0.00800474002070679
+    1.99701454428359]
 
     @test isapprox(errors, errors_tabulated, rtol = 1e-8)
 

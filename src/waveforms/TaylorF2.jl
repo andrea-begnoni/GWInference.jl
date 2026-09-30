@@ -130,7 +130,6 @@ function Phi(model::TaylorF2,
     chi1dotchi2  = chi1*chi2
     chi_s, chi_a   = 0.5*(chi1 + chi2), 0.5*(chi1 - chi2)
     chi_s2, chi_a2 = chi_s*chi_s, chi_a*chi_a
-    chi_sdotchi_a  = chi_s*chi_a
 
     vlso = 1. /sqrt(6.)
     if Lambda1 > 0. || Lambda2 > 0.
@@ -179,7 +178,7 @@ function Phi(model::TaylorF2,
         -(6848. /21.),
         TF2coeffs_seven,
     )
-
+    
     if is_eccentric
         # These are the eccentricity dependent coefficients up to 3 PN order, in the low-eccentricity limit, from arXiv:1605.00304
         
@@ -216,9 +215,9 @@ function Phi(model::TaylorF2,
     end    
     if is_tidal
         # Add tidal contribution if needed, as in PhysRevD.89.103012
-        Lam_t, delLam    = uc.Lamt_delLam_from_Lam12(Lambda1, Lambda2, eta)
+        Lam_t, delLam    = uc.Lamt_delLam_from_Lam12(eta, Lambda1, Lambda2)
         phi_Tidal = @. (-0.5*39. *Lam_t)*(v^10.) + (-3115. /64. *Lam_t + 6595. /364. *Seta*delLam)*(v^12.)
-        
+    
     else
         phi_Tidal = 0.
     end

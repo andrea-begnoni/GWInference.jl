@@ -65,6 +65,8 @@ function FisherMatrix(model::Model,
     fmax::Union{Nothing, Float64}=nothing,
     coordinate_shift::Bool = true,
     return_SNR::Bool = false,
+    optimization::Bool = false, # not supported for 1 detector
+    call_number = 1 # not supported for 1 detector
 )
     #function that is used only to divide between L and T detectors
 
@@ -168,7 +170,7 @@ function FisherMatrix_internal(model::Model,
         #ToDo: Print error
     end
 
-    if model == TaylorF2()
+    if model isa TaylorF2
         nPar = _npar(model, Lambda1, Lambda2)
     else
         nPar = _npar(model)
@@ -186,6 +188,7 @@ function FisherMatrix_internal(model::Model,
     psdGrid = linear_interpolation(detector.fNoise, detector.psd, extrapolation_bc = 1.0)(fgrid)  
     
     # compute SNR and procede only if it is above the threshold
+    SNRval = nothing
     if rho_thres !==nothing
         SNRval = SNR(
             model,
@@ -227,14 +230,20 @@ function FisherMatrix_internal(model::Model,
     strainAutoDiff_imag = Matrix{Float64}(undef, res, nPar)
     
     event_parameter = [mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal, optional_param...]
-    event_parameter = event_parameter[1:nPar] # cut off non-required parameter, ToDo: is this still required?   
+    if model isa TaylorF2 && nPar == 12 && Lambda1 == 0. # if Lambda1 = 0. and Lambda2 != 0. we need to add a zero Lambda1
+        event_parameter = [event_parameter[1:11]; Lambda2]
+        strain_param = x -> (x[1:11]..., Lambda1, x[12])
+    else
+        event_parameter = event_parameter[1:nPar] # cut off non-required parameter
+        strain_param = x -> x
+    end
     strainAutoDiff_real = ForwardDiff.jacobian(
         x -> real(
             Strain(
                 model,
                 detectorCoordinates,
                 fgrid,
-                x... ,
+                strain_param(x)... ,
                 alpha = alpha,
                 useEarthMotion = useEarthMotion
             ),
@@ -247,7 +256,7 @@ function FisherMatrix_internal(model::Model,
                 model,
                 detectorCoordinates,
                 fgrid,
-                x... ,
+                strain_param(x)... ,
                 alpha = alpha,
                 useEarthMotion = useEarthMotion,
             ),
@@ -288,9 +297,165 @@ function FisherMatrix_internal(model::Model,
 end
 
 """
+Same as FisherMatrix_internal above, but for PhenomHM and PhenomXHM using the waveform, `waveform_values`, and its jacobian w.r.t. (mc, eta, chi1, chi2, dL, iota),
+`waveform_jacobian`, precomputed on `fgrid` (see _hphc_values_jacobian). It is called by FisherMatrix when `optimization = true`.
+"""
+function FisherMatrix_internal(model::Union{PhenomHM, PhenomXHM},
+    detector::Detector,
+    fgrid::AbstractArray,
+    waveform_values::AbstractArray,
+    waveform_jacobian::AbstractArray,
+    mc::Float64,
+    eta::Float64,
+    theta::Float64,
+    phi::Float64,
+    psi::Float64,
+    tcoal::Float64,
+    phiCoal::Float64;
+    alpha = 0.0,
+    useEarthMotion::Bool = false,
+)
+    psdGrid = linear_interpolation(detector.fNoise, detector.psd, extrapolation_bc = 1.0)(fgrid)  
+
+    detectorCoordinates = DetectorCoordinates(
+        detector.latitude_rad,
+        detector.longitude_rad,
+        detector.orientation_rad,
+        detector.arm_aperture_rad
+    )
+
+    nPar = _npar(model)
+    len = length(fgrid)
+
+    ###########  Derivatives of the strain w.r.t. each parameter
+    # chi1, chi2, dL and iota enter only through the precomputed waveform jacobian, their values here are not used
+    event_parameter = [mc, eta, 0., 0., 0., theta, phi, 0., psi, tcoal, phiCoal]
+
+    strainAutoDiff_real = ForwardDiff.jacobian(
+        x -> real(
+            Strain(
+                model,
+                detectorCoordinates,
+                fgrid,
+                waveform_values,
+                waveform_jacobian,
+                x[1],x[2],x[6],x[7],x[9],x[10],x[11],
+                alpha = alpha,
+                useEarthMotion = useEarthMotion
+            ),
+        ),
+        event_parameter,
+    )
+
+    strainAutoDiff_imag = ForwardDiff.jacobian(
+        x -> imag(
+            Strain(
+                model,
+                detectorCoordinates,
+                fgrid,
+                waveform_values,
+                waveform_jacobian,
+                x[1],x[2],x[6],x[7],x[9],x[10],x[11],
+                alpha = alpha,
+                useEarthMotion = useEarthMotion
+            ),
+        ),
+        event_parameter,
+    )
+
+    # It can happen that a certain frequency gives a Nan value, in this case we set the derivative to zero,
+    # this happens less than one time per event and usually at the end of the frequency grid.
+    strainAutoDiff_real[isnan.(strainAutoDiff_real)] .= 0.0
+    strainAutoDiff_imag[isnan.(strainAutoDiff_imag)] .= 0.0
+    ######### end of derivatives
+    jacobian = Matrix{ComplexF64}(undef, nPar, len)
+    for ii in 1:nPar
+        jacobian[ii, :] = strainAutoDiff_real[:, ii] + 1im * strainAutoDiff_imag[:, ii]
+    end
+    jacobian[10,:] /= (3600.0 * 24.0)   # Change the units of the tcoal derivative from days to seconds (this improves conditioning)
+
+
+    # compute the Fisher matrix
+    Fisher = Matrix{Float64}(undef, nPar, nPar)
+
+    for alpha = 1:nPar
+        for beta = alpha:nPar
+            Fisher[alpha, beta] =
+                4.0 *
+                trapz(fgrid, real(jacobian[alpha, :] .* conj(jacobian[beta, :])) ./ psdGrid)
+            Fisher[beta, alpha] = Fisher[alpha, beta]
+        end
+    end
+
+    return Fisher
+
+end
+
+"""
+Computes hp and hc of PhenomHM or PhenomXHM on `fgrid`, together with their jacobian w.r.t. (mc, eta, chi1, chi2, dL, iota).
+The output is used by FisherMatrix when `optimization = true`, so that the waveform derivatives are computed only once for all the detectors.
+
+    waveform_values, waveform_jacobian = _hphc_values_jacobian(model, fgrid, mc, eta, chi1, chi2, dL, iota; call_number = 1)
+
+    #### Optional arguments:
+    -  `call_number` : int, default 1, how the waveform is called inside ForwardDiff:
+        1: the values are stored in a container and real and imaginary parts are differentiated in a single call (fastest),
+        2: the values are stored in a container and real and imaginary parts are differentiated separately,
+        3: standard, the values are computed with a separate call to the waveform.
+
+    #### Output:
+    - `waveform_values` : array, [hp; hc]
+    - `waveform_jacobian` : matrix, derivatives of [hp; hc], one column per parameter
+"""
+function _hphc_values_jacobian(model::Union{PhenomHM, PhenomXHM},
+    fgrid::AbstractArray,
+    mc::Float64,
+    eta::Float64,
+    chi1::Float64,
+    chi2::Float64,
+    dL::Float64,
+    iota::Float64;
+    call_number = 1,
+)
+    res = length(fgrid)
+    waveform_parameter = [mc, eta, chi1, chi2, dL, iota]
+
+    if call_number == 1 # use of the container and real + imag in single call
+        waveform_values = zeros(ComplexF64, 2*res)
+        waveform_jacobian_ = ForwardDiff.jacobian( x-> hphc(model, fgrid, x..., container=waveform_values, call_number=1, optimization=true), waveform_parameter)
+        waveform_jacobian_hp_real = waveform_jacobian_[1:res,:]
+        waveform_jacobian_hp_imag = waveform_jacobian_[res+1:2*res,:]
+        waveform_jacobian_hc_real = waveform_jacobian_[2*res+1:3*res,:]
+        waveform_jacobian_hc_imag = waveform_jacobian_[3*res+1:4*res,:]
+        waveform_jacobian = [waveform_jacobian_hp_real + 1im .* waveform_jacobian_hp_imag ; waveform_jacobian_hc_real + 1im .* waveform_jacobian_hc_imag]
+
+    elseif call_number == 2 # use of the container
+        waveform_values = zeros(ComplexF64, 2*res)
+        waveform_jacobian_real = ForwardDiff.jacobian( x-> real(hphc(model, fgrid, x..., container=waveform_values, call_number=2, optimization=true)), waveform_parameter)
+        waveform_jacobian_imag = ForwardDiff.jacobian( x-> imag(hphc(model, fgrid, x..., call_number=2, optimization=true)), waveform_parameter)
+        waveform_jacobian = waveform_jacobian_real + 1im .* waveform_jacobian_imag
+
+    elseif call_number == 3 # standard
+        waveform_jacobian_real = ForwardDiff.jacobian( x-> real(hphc(model, fgrid, x..., call_number=3, optimization=true)), waveform_parameter)
+        waveform_jacobian_imag = ForwardDiff.jacobian( x-> imag(hphc(model, fgrid, x..., call_number=3, optimization=true)), waveform_parameter)
+        waveform_jacobian = waveform_jacobian_real + 1im .* waveform_jacobian_imag
+        waveform_values = hphc(model, fgrid, mc, eta, chi1, chi2, dL, iota, call_number=3, optimization=true)
+
+    else
+        error("call_number must be 1, 2 or 3")
+    end
+
+    return waveform_values, waveform_jacobian
+end
+
+"""
 This function computes the *Fisher Matrix*, as a function of the parameters of the event, as measured by a NETWORK of detectors.
 It relies on the function FisherMatrix(..., detector::Detector, ...), which computes the Fisher for a single detector.
 where the dots indicate the parameters equal to the previous function call.
+
+#### Optional arguments:
+-  `optimization` : bool, default true, only for PhenomHM and PhenomXHM with a network of detectors, if true the derivatives of the waveform are computed only once and reused for each detector (faster)
+-  `call_number` : int, default 1, only used if `optimization` is true, selects how the waveform derivatives are computed (1, 2 or 3, see _hphc_values_jacobian)
 
 #### Example:
 ```julia
@@ -320,6 +485,8 @@ function FisherMatrix(model::Model,
     fmax::Union{Nothing, Float64} = nothing,
     coordinate_shift::Bool = true,
     return_SNR::Bool = false,
+    optimization::Bool = true,
+    call_number = 1,
 )
 
     #Define/extract tidal diformabilites
@@ -337,13 +504,21 @@ function FisherMatrix(model::Model,
     end
 
     # compute SNR and procede only if it is above the threshold
-    if model == TaylorF2()
+    if model isa TaylorF2
         nPar = _npar(model, Lambda1, Lambda2)
     else
         nPar = _npar(model)
     end
 
-    if rho_thres !==nothing
+    if optimization == true
+        # check call_number
+        if call_number != 1 && call_number != 2 && call_number != 3
+            error("call_number must be 1, 2 or 3")
+        end
+    end
+
+    SNRval = nothing
+    if rho_thres !==nothing || return_SNR == true
         SNRval = SNR(
             model,
             detector,
@@ -363,7 +538,7 @@ function FisherMatrix(model::Model,
             res = res,
             useEarthMotion = useEarthMotion,
         )
-        if SNRval < rho_thres
+        if rho_thres !==nothing && SNRval < rho_thres
             if return_SNR == true
                 return zeros(nPar, nPar), SNRval
             else
@@ -373,11 +548,71 @@ function FisherMatrix(model::Model,
         end
     end
 
+    # For PhenomHM and PhenomXHM the derivatives of the waveform are computed only once and reused for each detector
+    use_optimization = optimization == true && model isa Union{PhenomHM, PhenomXHM}
+    if use_optimization
+        if isnothing(fmax)
+            fcut = waveform._fcut(model, mc, eta, Lambda1, Lambda2)
+        else
+            fcut_tmp = waveform._fcut(model, mc, eta, Lambda1, Lambda2)
+            fcut = ifelse(fcut_tmp > fmax, fmax, fcut_tmp)
+        end
+
+        fgrid = 10 .^ (range(log10(fmin), log10(fcut), length = res))
+
+        waveform_values, waveform_jacobian = _hphc_values_jacobian(model, fgrid, mc, eta, chi1, chi2, dL, iota, call_number = call_number)
+    end
+
     fisherList = Vector{Matrix{Float64}}(undef, length(detector))
     for i in eachindex(detector)
         
 
-        if detector[i].shape == 'L'
+        if detector[i].shape == 'L' && use_optimization
+            F = FisherMatrix_internal(
+                model,
+                detector[i],
+                fgrid,
+                waveform_values,
+                waveform_jacobian,
+                mc,
+                eta,
+                theta,
+                phi,
+                psi,
+                tcoal,
+                phiCoal,
+                alpha = alpha,
+                useEarthMotion = useEarthMotion,
+            )
+        elseif detector[i].shape == 'T' && use_optimization
+            F = FisherMatrix_Tdetector(
+                model,
+                detector[i],
+                mc,
+                eta,
+                chi1,
+                chi2,
+                dL,
+                theta,
+                phi,
+                iota,
+                psi,
+                tcoal,
+                phiCoal,
+                optional_param...,
+                rho_thres=nothing,
+                res = res,
+                useEarthMotion = useEarthMotion,
+                alpha = alpha,
+                fmin=fmin,
+                fmax=fmax,
+                coordinate_shift = coordinate_shift,
+                return_SNR=false,
+                fgrid = fgrid,
+                waveform_values = waveform_values,
+                waveform_jacobian = waveform_jacobian,
+            )
+        elseif detector[i].shape == 'L'
             F = FisherMatrix_internal(
                 model,
                 detector[i],
@@ -464,7 +699,15 @@ function FisherMatrix_Tdetector(model::Model,
     REarth_km = uc.REarth_km,
     coordinate_shift::Bool = true,
     return_SNR::Bool = false, 
+    fgrid = nothing,
+    waveform_values = nothing,
+    waveform_jacobian = nothing,
 )
+    # if fgrid, waveform_values and waveform_jacobian are given (PhenomHM and PhenomXHM with optimization = true, see FisherMatrix)
+    # the precomputed waveform derivatives are used for the three arms
+    use_optimization = model isa Union{PhenomHM, PhenomXHM} && !isnothing(waveform_jacobian)
+
+    SNRval = nothing
 
     if rho_thres !== nothing
 
@@ -482,7 +725,7 @@ function FisherMatrix_Tdetector(model::Model,
             #ToDo: Print error
         end
 
-        if model == TaylorF2()
+        if model isa TaylorF2
             nPar = _npar(model, Lambda1, Lambda2)
         else
             nPar = _npar(model)
@@ -551,76 +794,111 @@ function FisherMatrix_Tdetector(model::Model,
         ET3 = Detector(detector.latitude_rad, detector.longitude_rad, detector.orientation_rad, detector.arm_aperture_rad, 'L', detector.fNoise, detector.psd, detector.label)
     end
 
-    F1 = FisherMatrix_internal(
-        model,
-        ET1,
-        mc,
-        eta,
-        chi1,
-        chi2,
-        dL,
-        theta,
-        phi,
-        iota,
-        psi,
-        tcoal,
-        phiCoal,
-        optional_param...,
-        res = res,
-        useEarthMotion = useEarthMotion,
-        rho_thres = nothing,
-        alpha = 0.0,
-        fmin=fmin,
-        fmax=fmax,
-        return_SNR=false,
-    )
-    F2 = FisherMatrix_internal(
-        model,
-        ET2,
-        mc,
-        eta,
-        chi1,
-        chi2,
-        dL,
-        theta,
-        phi,
-        iota,
-        psi,
-        tcoal,
-        phiCoal,
-        optional_param...,
-        res = res,
-        useEarthMotion = useEarthMotion,
-        rho_thres = nothing,
-        alpha = 60.0,
-        fmin=fmin,
-        fmax=fmax,
-        return_SNR=false,
-    )
-    F3 = FisherMatrix_internal(
-        model,
-        ET3,
-        mc,
-        eta,
-        chi1,
-        chi2,
-        dL,
-        theta,
-        phi,
-        iota,
-        psi,
-        tcoal,
-        phiCoal,
-        optional_param...,
-        res = res,
-        useEarthMotion = useEarthMotion,
-        rho_thres = nothing,
-        alpha = 120.0,
-        fmin=fmin,
-        fmax=fmax,
-        return_SNR=false,
+    if use_optimization
+        parameters = [mc, eta, theta, phi, psi, tcoal, phiCoal]
+        F1 = FisherMatrix_internal(
+            model,
+            ET1,
+            fgrid,
+            waveform_values,
+            waveform_jacobian,
+            parameters...,
+            alpha = 0.0,
+            useEarthMotion = useEarthMotion,
+        )
+        F2 = FisherMatrix_internal(
+            model,
+            ET2,
+            fgrid,
+            waveform_values,
+            waveform_jacobian,
+            parameters...,
+            alpha = 60.0,
+            useEarthMotion = useEarthMotion,
+        )
+        F3 = FisherMatrix_internal(
+            model,
+            ET3,
+            fgrid,
+            waveform_values,
+            waveform_jacobian,
+            parameters...,
+            alpha = 120.0,
+            useEarthMotion = useEarthMotion,
+        )
 
-    )
+    else
+        F1 = FisherMatrix_internal(
+            model,
+            ET1,
+            mc,
+            eta,
+            chi1,
+            chi2,
+            dL,
+            theta,
+            phi,
+            iota,
+            psi,
+            tcoal,
+            phiCoal,
+            optional_param...,
+            res = res,
+            useEarthMotion = useEarthMotion,
+            rho_thres = nothing,
+            alpha = 0.0,
+            fmin=fmin,
+            fmax=fmax,
+            return_SNR=false,
+        )
+        F2 = FisherMatrix_internal(
+            model,
+            ET2,
+            mc,
+            eta,
+            chi1,
+            chi2,
+            dL,
+            theta,
+            phi,
+            iota,
+            psi,
+            tcoal,
+            phiCoal,
+            optional_param...,
+            res = res,
+            useEarthMotion = useEarthMotion,
+            rho_thres = nothing,
+            alpha = 60.0,
+            fmin=fmin,
+            fmax=fmax,
+            return_SNR=false,
+        )
+        F3 = FisherMatrix_internal(
+            model,
+            ET3,
+            mc,
+            eta,
+            chi1,
+            chi2,
+            dL,
+            theta,
+            phi,
+            iota,
+            psi,
+            tcoal,
+            phiCoal,
+            optional_param...,
+            res = res,
+            useEarthMotion = useEarthMotion,
+            rho_thres = nothing,
+            alpha = 120.0,
+            fmin=fmin,
+            fmax=fmax,
+            return_SNR=false,
+
+        )
+    end
     if return_SNR == true
         return F1 + F2 + F3, SNRval
     else
@@ -663,6 +941,8 @@ SNRs if requested and saves the results (Fisher matrices and SNRs) in a file if 
     -  `return_SNR` : bool, default false, if true the function returns the SNR of the event (skipping the need to call the SNR function)
     -  `auto_save` : bool, default false, if true the function saves the results in a file
     -  `name_folder` : string, name of the folder where the results are saved, if the default is left, it saves BBH in the folder "output/BBH" and so on for each source type
+    -  `optimization` : bool, default true, only for PhenomHM and PhenomXHM with a network of detectors, if true the derivatives of the waveform are computed only once and reused for each detector (faster)
+    -  `call_number` : int, default 1, only used if `optimization` is true, selects how the waveform derivatives are computed (1, 2 or 3, see _hphc_values_jacobian)
 
     #### Output:
     - `FisherMatrix`  : matrix, Fisher Matrix
@@ -699,6 +979,8 @@ function FisherMatrix(model::Model,
     auto_save::Bool =false,
     name_folder = nothing,
     save_catalog::Bool = false,
+    optimization::Bool = true,
+    call_number = 1,
 )
     nEvents = length(mc)    
 
@@ -708,6 +990,10 @@ function FisherMatrix(model::Model,
 
     if(fmax isa AbstractArray && length(fmax) != nEvents)
         throw(ArgumentError("fmax must be an array of the same length as the number of events (or otherwise a single scalar Float64 or Nothing)"))
+    end
+
+    if name_folder === nothing
+        name_folder = _event_type(model) 
     end
 
     #Define/extract tidal diformabilites
@@ -730,7 +1016,7 @@ function FisherMatrix(model::Model,
         #ToDo: Print error
     end
 
-    if model == TaylorF2()
+    if model isa TaylorF2
         nPar = _npar(model, Lambda1[1], Lambda2[1])
     else
         nPar = _npar(model)
@@ -773,7 +1059,9 @@ function FisherMatrix(model::Model,
                 rho_thres=rho_thres, 
                 alpha = alpha, 
                 coordinate_shift = coordinate_shift, 
-                return_SNR=true
+                return_SNR=true,
+                optimization = optimization,
+                call_number = call_number
             )
         end 
 
@@ -850,7 +1138,10 @@ function FisherMatrix(model::Model,
                         useEarthMotion = useEarthMotion, 
                         rho_thres=rho_thres, 
                         alpha = alpha, 
-                        coordinate_shift = coordinate_shift
+                        coordinate_shift = coordinate_shift,
+                        return_SNR=false,
+                        optimization = optimization,
+                        call_number = call_number
                     )
                 end 
         println("Fisher matrices computed!")

@@ -70,11 +70,11 @@ function _fcutInsp(model::PhenomXHM, eta, chi1, emm, fMECOlm)
 
     Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)
     q = 0.5*(1.0 + Seta - 2.0*eta)/eta
-  #Return the end frequency of the inspiral region and the beginning of the intermediate for the amplitude of one mode.
+    #Return the end frequency of the inspiral region and the beginning of the intermediate for the amplitude of one mode.
 
 
 
-  
+    
     if q < 20.
         fcut = fMECOlm;
     else
@@ -93,7 +93,7 @@ end
 #= Ringdown cutting frequency for the amplitude =#
 function _fcutRD(model::PhenomXHM, fring, fdamp, ModeMixingOn, fring_22, fdamp_22)
 
-  #Returns the end of the intermediate region and the beginning of the ringdown for the amplitude of one mode
+    #Returns the end of the intermediate region and the beginning of the ringdown for the amplitude of one mode
 
     if ModeMixingOn == true
         fcut = fring_22 - 0.5 * fdamp_22; #v8
@@ -237,7 +237,11 @@ function RD_Phase_Ansatz(model::PhenomXHM, ff, alpha0, alpha2, alphaL, fring, fd
 end
 
 function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
-                debug=false, fcutPar = 0.3, GMsun_over_c3 = uc.GMsun_over_c3, GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc)
+                debug=false, fcutPar = 0.3, GMsun_over_c3 = uc.GMsun_over_c3, GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+                container= nothing,
+                call_number = 2,
+                optimization = false
+            )
 
 
     M = mc / (eta^(0.6))
@@ -460,7 +464,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
     mixingCoeffs4 = re_l3m2lp3 + 1im * im_l3m2lp3
 
     mixingCoeffs = [mixingCoeffs1, mixingCoeffs2, mixingCoeffs3, mixingCoeffs4]
-  
+    
     # Adjust conventions so that they match the ones used for the hybrids
     mixingCoeffs[3]= -1. * mixingCoeffs[3];
     mixingCoeffs[4]= -1. * mixingCoeffs[4];
@@ -484,7 +488,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
     IMRPhenomXHMInspiralPhaseFitsVersion = IMRPhenomXHMInspiralPhaseVersion;
     IMRPhenomXHMIntermediatePhaseFitsVersion = IMRPhenomXHMIntermediatePhaseVersion;
     IMRPhenomXHMRingdownPhaseFitsVersion = IMRPhenomXHMRingdownPhaseVersion;
-  
+    
     IMRPhenomXHMInspiralPhaseFreqsVersion = IMRPhenomXHMInspiralPhaseVersion;
     IMRPhenomXHMIntermediatePhaseFreqsVersion = IMRPhenomXHMIntermediatePhaseVersion;
     IMRPhenomXHMRingdownPhaseFreqsVersion = IMRPhenomXHMRingdownPhaseVersion;
@@ -849,7 +853,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         # TaylorF2 PN Amplitude Coefficients
         prefactors = [sqrt(2)/3., 0.75*sqrt(5/7.), sqrt(5/7.)/3., 4*sqrt(2)/9*sqrt(5/7.)]; #Global factors of each PN hlm
         PNglobalfactor = (2. /(emm))^(-7/6.)*prefactors[index]; #This is to compensate that we rescale data with the leading order of the 22
- 
+    
         
         useFAmpPN = 0
         if ell_emm == 21
@@ -1088,7 +1092,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
             pnAmp = abs(pnInitial + f^(1/3) * pnOneThird + f^(2/3)   * pnTwoThirds  + f * pnThreeThirds + f^(4/3)  * pnFourThirds + f^(5/3)  * pnFiveThirds + f^(2) * pnSixThirds);
             
             pnAmp *= PNglobalfactor * f^(-7/6) * ampNorm;
- 
+    
 
             return pnAmp;
 
@@ -1279,7 +1283,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
 
         ##### end IMRPhenomXHM_RD_Amp_Coefficients
 
-                  
+                    
         ##### from IMRPhenomXHM_Intermediate_Amp_Coefficients
 
         # Previously we checked that nCollocPtsInterAmp read from the IMRPhenomXHMIntermediateAmpVersion is equal to the number of free coefficients in the ansatz. 
@@ -1336,8 +1340,8 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
             # println("\nMf_ = ", Mf_)
             # println("InspAmp: ", InspAmp)
             pseudoterms = (Mf_^(7/3) / fcutInsp_seven_thirds * InspiralCoefficient[1]) +
-                          + (Mf_^(8/3) / fcutInsp_eight_thirds * InspiralCoefficient[2]) +
-                          + (Mf_^3     / fcutInsp_three * InspiralCoefficient[3]);
+                            + (Mf_^(8/3) / fcutInsp_eight_thirds * InspiralCoefficient[2]) +
+                            + (Mf_^3     / fcutInsp_three * InspiralCoefficient[3]);
             pseudoterms *= Mf_^(-7/6) * PNdominant;
 
             InspAmp += pseudoterms;
@@ -2262,9 +2266,9 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         
         
             for j in eachindex(htildelm)    
-              hlm = htildelm[j];
-              hp[j] += (factorp * hlm);
-              hc[j] += (factorc * hlm);
+                hlm = htildelm[j];
+                hp[j] += (factorp * hlm);
+                hc[j] += (factorc * hlm);
             end
 
             if debug == true
@@ -2299,7 +2303,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         
         # // WITHOUT mode mixing. It returns the whole amplitude (in NR units) without the normalization factor of the 22: sqrt[2 * eta / (3 * pi^(1/3))]
         function Amplitude_noModeMixing(Mf)
-          #// If it is an odd mode and equal black holes case this mode is zero.
+            #// If it is an odd mode and equal black holes case this mode is zero.
             if Ampzero==1
                 return 0.;
             end
@@ -2321,7 +2325,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
             end
             return Amp
         end
-           
+            
         
         #// If the 22 mode has been previously computed, we use it here for the rotation.
         function SpheroidalToSphericalRecycle(Mf,idx)
@@ -2346,8 +2350,8 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         function Amplitude_ModeMixingRecycle(Mf,idx)
         
             #// WITH mode mixing and recycling the previously computed 22 mode. It returns the whole amplitude (in NR units) without the normalization factor of the 22: sqrt[2 * eta / (3 * pi^(1/3))].
-              #// Use step function to only calculate IMR regions in approrpiate frequency regime
-              #// Inspiral range
+                #// Use step function to only calculate IMR regions in approrpiate frequency regime
+                #// Inspiral range
             if Mf < fAmpMatchIN
                 Amp =  Inspiral_Amp_Ansatz(Mf)
             
@@ -2372,15 +2376,15 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         
         #    / WITH mode mixing and recycling the previously computed 22 mode.
         function Phase_ModeMixingRecycle(Mf,idx)
-          #// Inspiral range, f < fPhaseInsMax
+            #// Inspiral range, f < fPhaseInsMax
             if Mf < fPhaseMatchIN
-          
+            
                 PhiIns = Inspiral_Phase_AnsatzInt(Mf);
                 return PhiIns + C1INSP*Mf + CINSP + deltaphiLM;
             end
             #// MRD range, f > fPhaseIntMax
             if Mf > fPhaseMatchIM
-          
+            
                 PhiMRD = angle(SpheroidalToSphericalRecycle(Mf,idx));
                 return PhiMRD + C1RD*Mf + CRD + deltaphiLM;
             end
@@ -2441,7 +2445,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
             println("Mf amp phi")
         end
         if ModeMixingOn==true
-          #// If the 22 mode has been already computed we use it for the mixing of the 32.
+            #// If the 22 mode has been already computed we use it for the mixing of the 32.
             for idx in 1:len
             
                 #wf22 = data[idx + offset]; #//This will be rescaled inside SpheroidalToSphericalRecycle for the rotation
@@ -2458,12 +2462,12 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
                 # Reconstruct waveform: h(f) = A(f) * Exp[I phi(f)] 
                 htildelm__[idx+offset] = Amp0 * amp * exp(1im * Phi);
             end
-          
-          #// If the 22 has not been computed, its ringdown part is computed internally using pAmp22 and pPhase22.
-           #   No mode mixing 
+            
+            #// If the 22 has not been computed, its ringdown part is computed internally using pAmp22 and pPhase22.
+            #   No mode mixing 
         else
             for idx in 1:len
-          
+            
                 amp = Amplitude_noModeMixing(Mf[idx])
                 Phi = Phase_noModeMixing(Mf[idx])
                 
@@ -2617,18 +2621,35 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
         
     end # End of loop over modes 
 
+    if typeof(eta) !== Float64 && !isnothing(container)
 
+        for i in eachindex(fgrid)
+            container[i] = real(hp[i]).value + 1im * imag(hp[i]).value
+            container[i + length(fgrid)] = real(hc[i]).value + 1im * imag(hc[i]).value
+        end    
 
+    end
+    
+    if optimization == true
 
-    return hp, hc
+        if call_number == 1
+            return [real(hp); imag(hp); real(hc); imag(hc)]
+        else call_number == 2 || call_number == 3
+            return [hp; hc]
+
+        end
+    else
+        return hp, hc
+    end
+
 end
 
 
-function _completePhaseDer(model, infreqs, Phase22, fdamp, fring)
+function _completePhaseDer(model::PhenomXHM, infreqs, Phase22, fdamp, fring)
     return @. ifelse(infreqs <= Phase22.fPhaseMatchIN, (infreqs^(-8. /3.))*Phase22.dphase0*(Phase22.dphi0 + Phase22.dphi1*(infreqs^(1. /3.)) + Phase22.dphi2*(infreqs^(2. /3.)) + Phase22.dphi3*infreqs + Phase22.dphi4*(infreqs^(4. /3.)) + Phase22.dphi5*(infreqs^(5. /3.)) + (Phase22.dphi6 + Phase22.dphi6L*log(infreqs))*infreqs*infreqs + Phase22.dphi7*(infreqs^(7. /3.)) + (Phase22.dphi8 + Phase22.dphi8L*log(infreqs))*(infreqs^(8. /3.)) + (Phase22.dphi9  + Phase22.dphi9L*log(infreqs))*infreqs*infreqs*infreqs + Phase22.a0coloc*(infreqs^(8. /3.)) + Phase22.a1coloc*infreqs*infreqs*infreqs + Phase22.a2coloc*(infreqs^(10. /3.)) + Phase22.a3coloc*(infreqs^(11. /3.)) + Phase22.a4coloc*(infreqs^4)), ifelse(infreqs <= Phase22.fPhaseMatchIM, Phase22.b0coloc + Phase22.b1coloc/infreqs + Phase22.b2coloc/(infreqs*infreqs) + Phase22.b3coloc/(infreqs*infreqs*infreqs) + Phase22.b4coloc/(infreqs*infreqs*infreqs*infreqs) + (4. *Phase22.cLcoloc) / ((4. *fdamp*fdamp) + (infreqs - fring)*(infreqs - fring)) + Phase22.C2Int, (Phase22.c0coloc + Phase22.c1coloc*(infreqs^(-1. /3.)) + Phase22.c2coloc/(infreqs*infreqs) + Phase22.c4coloc/(infreqs*infreqs*infreqs*infreqs) + (Phase22.cLcoloc / (fdamp*fdamp + (infreqs - fring)*(infreqs - fring)))) + Phase22.C2MRD))
 end
 
-function _completePhase(model, infreqs, Phase22, fdamp, fring, fcutPar = 0.3)
+function _completePhase(model::PhenomXHM, infreqs, Phase22, fdamp, fring, fcutPar = 0.3)
     phiNorm = - (3. * (pi^(-5. /3.)))/ 128.
     c4ov3   = Phase22.c4coloc / 3.
     cLovfda = Phase22.cLcoloc / fdamp

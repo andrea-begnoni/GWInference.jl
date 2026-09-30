@@ -130,7 +130,6 @@ function Phi(model::PhenomXAS,
     InsPhaseVersion=104,
     IntPhaseVersion=105
 )
-
     M = mc / (eta^(0.6))
     eta2 = eta * eta # These can speed up a bit, we call them multiple times
     etaInv = 1 ./ eta
@@ -576,26 +575,94 @@ function Phi(model::PhenomXAS,
     
     C2MRD = DPhiIntC - DPhiRD
     C1MRD = phiIMC - phiRD - C2MRD*fPhaseMatchIM
+
+    Phase22 = Phase22Struct(
+        fPhaseMatchIN,
+        fPhaseMatchIM,
+        phi0,
+        phi1,
+        phi2,
+        phi3,
+        phi4,
+        phi5,
+        phi5L,
+        phi6,
+        phi6L,
+        phi7,
+        phi8,
+        phi8L,
+        phi9,
+        phi9L,
+        dphase0,
+        dphi0,
+        dphi1,
+        dphi2,
+        dphi3,
+        dphi4,
+        dphi5,
+        dphi6,
+        dphi6L,
+        dphi7,
+        dphi8,
+        dphi8L,
+        dphi9,
+        dphi9L,
+        a0coloc,
+        a1coloc,
+        a2coloc,
+        a3coloc,
+        a4coloc,
+        b0coloc,
+        b1coloc,
+        b2coloc,
+        b3coloc,
+        b4coloc,
+        cLcoloc,
+        C2Int,
+        c0coloc,
+        c1coloc,
+        c2coloc,
+        c4coloc,
+        C2MRD,
+        sigma1,
+        sigma2,
+        sigma3,
+        sigma4,
+        sigma5,
+        C1Int,
+        C1MRD,
+    )
     
 
     # Linear time and phase shifts so that model peaks near t ~ 0
     lina = 0.
     linb         = ((3155.1635543201924 + 1257.9949740608242*eta - 32243.28428870599*eta2 + 347213.65466875216*eta2*eta - 1.9223851649491738e6*eta2*eta2 + 5.3035911346921865e6*eta2*eta2*eta - 5.789128656876938e6*eta2*eta2*eta2) + ((-24.181508118588667 + 115.49264174560281*eta - 380.19778216022763*eta2)*totchi + (24.72585609641552 - 328.3762360751952*eta + 725.6024119989094*eta2)*totchi2 + (23.404604124552 - 646.3410199799737*eta + 1941.8836639529036*eta2)*totchi2*totchi + (-12.814828278938885 - 325.92980012408367*eta + 1320.102640190539*eta2)*totchi2*totchi2) + (-148.17317525117338*dchi*delta*eta2))
-    _completePhaseDer = infreqs -> @. ifelse(infreqs <= fPhaseMatchIN, (infreqs^(-8. /3.))*dphase0*(dphi0 + dphi1*(infreqs^(1. /3.)) + dphi2*(infreqs^(2. /3.)) + dphi3*infreqs + dphi4*(infreqs^(4. /3.)) + dphi5*(infreqs^(5. /3.)) + (dphi6 + dphi6L*log(infreqs))*infreqs*infreqs + dphi7*(infreqs^(7. /3.)) + (dphi8 + dphi8L*log(infreqs))*(infreqs^(8. /3.)) + (dphi9  + dphi9L*log(infreqs))*infreqs*infreqs*infreqs + a0coloc*(infreqs^(8. /3.)) + a1coloc*infreqs*infreqs*infreqs + a2coloc*(infreqs^(10. /3.)) + a3coloc*(infreqs^(11. /3.)) + a4coloc*(infreqs^4)), ifelse(infreqs <= fPhaseMatchIM, b0coloc + b1coloc/infreqs + b2coloc/(infreqs*infreqs) + b3coloc/(infreqs*infreqs*infreqs) + b4coloc/(infreqs*infreqs*infreqs*infreqs) + (4. *cLcoloc) / ((4. *fdamp*fdamp) + (infreqs - fring)*(infreqs - fring)) + C2Int, (c0coloc + c1coloc*(infreqs^(-1. /3.)) + c2coloc/(infreqs*infreqs) + c4coloc/(infreqs*infreqs*infreqs*infreqs) + (cLcoloc / (fdamp*fdamp + (infreqs - fring)*(infreqs - fring)))) + C2MRD))
-    _completePhase = infreqs ->  @. ifelse(infreqs <= fPhaseMatchIN, phiNorm*(infreqs^(-5. /3.))*(phi0 + phi1*(infreqs^(1. /3.)) + phi2*(infreqs^(2. /3.)) + phi3*infreqs + phi4*(infreqs^(4. /3.)) + (phi5 + phi5L*log(infreqs))*(infreqs^(5. /3.)) + (phi6 + phi6L*log(infreqs))*infreqs*infreqs + phi7*(infreqs^(7. /3.)) + (phi8 + phi8L*log(infreqs))*(infreqs^(8. /3.)) + (phi9  + phi9L*log(infreqs))*infreqs*infreqs*infreqs + sigma1*(infreqs^(8. /3.)) + sigma2*(infreqs*infreqs*infreqs) + sigma3*(infreqs^(10. /3.)) + sigma4*(infreqs^(11. /3.)) + sigma5*(infreqs^4)), ifelse(infreqs <= fPhaseMatchIM, b0coloc*infreqs + b1coloc*log(infreqs) - b2coloc/infreqs - b3coloc/(infreqs*infreqs)/2. - (b4coloc/(infreqs*infreqs*infreqs)/3.) + (2. * cLcoloc * atan((infreqs - fring) / (2. * fdamp)))/fdamp + C1Int + C2Int*infreqs, ifelse(infreqs < fcutPar, (c0coloc*infreqs + 1.5*c1coloc*(infreqs^(2. /3.)) - c2coloc/infreqs - c4ov3/(infreqs*infreqs*infreqs) + (cLovfda * atan((infreqs - fring)/fdamp))) + C1MRD + C2MRD*infreqs, 0.)))
 
-    dphi22Ref    = etaInv * _completePhaseDer(fring-fdamp)
+    #dphi22Ref    = etaInv * _completePhaseDer(fring-fdamp)
+    dphi22Ref    = etaInv * _completePhaseDer(model, fring-fdamp, Phase22, fdamp, fring)
     psi4tostrain = ((13.39320482758057 - 175.42481512989315*eta + 2097.425116152503*eta2 - 9862.84178637907*eta2*eta + 16026.897939722587*eta2*eta2) + ((4.7895602776763 - 163.04871764530466*eta + 609.5575850476959*eta2)*totchi + (1.3934428041390161 - 97.51812681228478*eta + 376.9200932531847*eta2)*totchi2 + (15.649521097877374 + 137.33317057388916*eta - 755.9566456906406*eta2)*totchi2*totchi + (13.097315867845788 + 149.30405703643288*eta - 764.5242164872267*eta2)*totchi2*totchi2) + (105.37711654943146*dchi*Seta*eta2))
     linb         = linb - dphi22Ref - 2. *pi*(500. +psi4tostrain)
     
-    phifRef = -(etaInv*_completePhase(fRef) + linb*fRef + lina) + pi/4. + pi
-    phis    = @. etaInv*_completePhase(fgrid) + ifelse(fgrid <= fcutPar, linb*fgrid + lina + phifRef, 0.)
-    
+    #phifRef = -(etaInv*_completePhase(fRef) + linb*fRef + lina) + pi/4. + pi
+    phifRef = -(etaInv*_completePhase(model, fRef, Phase22, fdamp, fring) + linb*fRef + lina) + pi/4. + pi
+    #phis    = @. etaInv*_completePhase(fgrid) + ifelse(fgrid <= fcutPar, linb*fgrid + lina + phifRef, 0.)
+    phis    =  etaInv .*_completePhase(model, fgrid, Phase22, fdamp, fring) .+ ifelse.(fgrid .<= fcutPar, linb .*fgrid .+ lina .+ phifRef, 0.)
     return phis
 end
 
+# _completePhaseDer = infreqs -> @. ifelse(infreqs <= fPhaseMatchIN, (infreqs^(-8. /3.))*dphase0*(dphi0 + dphi1*(infreqs^(1. /3.)) + dphi2*(infreqs^(2. /3.)) + dphi3*infreqs + dphi4*(infreqs^(4. /3.)) + dphi5*(infreqs^(5. /3.)) + (dphi6 + dphi6L*log(infreqs))*infreqs*infreqs + dphi7*(infreqs^(7. /3.)) + (dphi8 + dphi8L*log(infreqs))*(infreqs^(8. /3.)) + (dphi9  + dphi9L*log(infreqs))*infreqs*infreqs*infreqs + a0coloc*(infreqs^(8. /3.)) + a1coloc*infreqs*infreqs*infreqs + a2coloc*(infreqs^(10. /3.)) + a3coloc*(infreqs^(11. /3.)) + a4coloc*(infreqs^4)), ifelse(infreqs <= fPhaseMatchIM, b0coloc + b1coloc/infreqs + b2coloc/(infreqs*infreqs) + b3coloc/(infreqs*infreqs*infreqs) + b4coloc/(infreqs*infreqs*infreqs*infreqs) + (4. *cLcoloc) / ((4. *fdamp*fdamp) + (infreqs - fring)*(infreqs - fring)) + C2Int, (c0coloc + c1coloc*(infreqs^(-1. /3.)) + c2coloc/(infreqs*infreqs) + c4coloc/(infreqs*infreqs*infreqs*infreqs) + (cLcoloc / (fdamp*fdamp + (infreqs - fring)*(infreqs - fring)))) + C2MRD))
+# _completePhase = infreqs ->  @. ifelse(infreqs <= fPhaseMatchIN, phiNorm*(infreqs^(-5. /3.))*(phi0 + phi1*(infreqs^(1. /3.)) + phi2*(infreqs^(2. /3.)) + phi3*infreqs + phi4*(infreqs^(4. /3.)) + (phi5 + phi5L*log(infreqs))*(infreqs^(5. /3.)) + (phi6 + phi6L*log(infreqs))*infreqs*infreqs + phi7*(infreqs^(7. /3.)) + (phi8 + phi8L*log(infreqs))*(infreqs^(8. /3.)) + (phi9  + phi9L*log(infreqs))*infreqs*infreqs*infreqs + sigma1*(infreqs^(8. /3.)) + sigma2*(infreqs*infreqs*infreqs) + sigma3*(infreqs^(10. /3.)) + sigma4*(infreqs^(11. /3.)) + sigma5*(infreqs^4)), ifelse(infreqs <= fPhaseMatchIM, b0coloc*infreqs + b1coloc*log(infreqs) - b2coloc/infreqs - b3coloc/(infreqs*infreqs)/2. - (b4coloc/(infreqs*infreqs*infreqs)/3.) + (2. * cLcoloc * atan((infreqs - fring) / (2. * fdamp)))/fdamp + C1Int + C2Int*infreqs, ifelse(infreqs < fcutPar, (c0coloc*infreqs + 1.5*c1coloc*(infreqs^(2. /3.)) - c2coloc/infreqs - c4ov3/(infreqs*infreqs*infreqs) + (cLovfda * atan((infreqs - fring)/fdamp))) + C1MRD + C2MRD*infreqs, 0.)))
 
+function _completePhaseDer(model, infreqs, Phase22, fdamp, fring)
+    return @. ifelse(infreqs <= Phase22.fPhaseMatchIN, (infreqs^(-8. /3.))*Phase22.dphase0*(Phase22.dphi0 + Phase22.dphi1*(infreqs^(1. /3.)) + Phase22.dphi2*(infreqs^(2. /3.)) + Phase22.dphi3*infreqs + Phase22.dphi4*(infreqs^(4. /3.)) + Phase22.dphi5*(infreqs^(5. /3.)) + (Phase22.dphi6 + Phase22.dphi6L*log(infreqs))*infreqs*infreqs + Phase22.dphi7*(infreqs^(7. /3.)) + (Phase22.dphi8 + Phase22.dphi8L*log(infreqs))*(infreqs^(8. /3.)) + (Phase22.dphi9  + Phase22.dphi9L*log(infreqs))*infreqs*infreqs*infreqs + Phase22.a0coloc*(infreqs^(8. /3.)) + Phase22.a1coloc*infreqs*infreqs*infreqs + Phase22.a2coloc*(infreqs^(10. /3.)) + Phase22.a3coloc*(infreqs^(11. /3.)) + Phase22.a4coloc*(infreqs^4)), ifelse(infreqs <= Phase22.fPhaseMatchIM, Phase22.b0coloc + Phase22.b1coloc/infreqs + Phase22.b2coloc/(infreqs*infreqs) + Phase22.b3coloc/(infreqs*infreqs*infreqs) + Phase22.b4coloc/(infreqs*infreqs*infreqs*infreqs) + (4. *Phase22.cLcoloc) / ((4. *fdamp*fdamp) + (infreqs - fring)*(infreqs - fring)) + Phase22.C2Int, (Phase22.c0coloc + Phase22.c1coloc*(infreqs^(-1. /3.)) + Phase22.c2coloc/(infreqs*infreqs) + Phase22.c4coloc/(infreqs*infreqs*infreqs*infreqs) + (Phase22.cLcoloc / (fdamp*fdamp + (infreqs - fring)*(infreqs - fring)))) + Phase22.C2MRD))
+end
 
+function _completePhase(model, infreqs, Phase22, fdamp, fring, fcutPar = 0.3)
+    phiNorm = - (3. * (pi^(-5. /3.)))/ 128.
+    c4ov3   = Phase22.c4coloc / 3.
+    cLovfda = Phase22.cLcoloc / fdamp
+    return @. ifelse(infreqs <= Phase22.fPhaseMatchIN, phiNorm*(infreqs^(-5. /3.))*(Phase22.phi0 + Phase22.phi1*(infreqs^(1. /3.)) + Phase22.phi2*(infreqs^(2. /3.)) + Phase22.phi3*infreqs + Phase22.phi4*(infreqs^(4. /3.)) + (Phase22.phi5 + Phase22.phi5L*log(infreqs))*(infreqs^(5. /3.)) + (Phase22.phi6 + Phase22.phi6L*log(infreqs))*infreqs*infreqs + Phase22.phi7*(infreqs^(7. /3.)) + (Phase22.phi8 + Phase22.phi8L*log(infreqs))*(infreqs^(8. /3.)) + (Phase22.phi9  + Phase22.phi9L*log(infreqs))*infreqs*infreqs*infreqs + Phase22.sigma1*(infreqs^(8. /3.)) + Phase22.sigma2*(infreqs*infreqs*infreqs) + Phase22.sigma3*(infreqs^(10. /3.)) + Phase22.sigma4*(infreqs^(11. /3.)) + Phase22.sigma5*(infreqs^4)), ifelse(infreqs <= Phase22.fPhaseMatchIM, Phase22.b0coloc*infreqs + Phase22.b1coloc*log(infreqs) - Phase22.b2coloc/infreqs - Phase22.b3coloc/(infreqs*infreqs)/2. - (Phase22.b4coloc/(infreqs*infreqs*infreqs)/3.) + (2. * Phase22.cLcoloc * atan((infreqs - fring) / (2. * fdamp)))/fdamp + Phase22.C1Int + Phase22.C2Int*infreqs, ifelse(infreqs < fcutPar, (Phase22.c0coloc*infreqs + 1.5*Phase22.c1coloc*(infreqs^(2. /3.)) - Phase22.c2coloc/infreqs - c4ov3/(infreqs*infreqs*infreqs) + (cLovfda * atan((infreqs - fring)/fdamp))) + Phase22.C1MRD + Phase22.C2MRD*infreqs, 0.)))
+end
 """
 Compute the amplitude of the GW as a function of frequency, given the events parameters.
 

@@ -180,6 +180,7 @@ where the dots indicate the parameters equal to the previous function call.
 
 #### Optional arguments:
 -  `precomputation` : bool, default true, if true the waveform is called just once and then reused for each detector.
+-  `ampl_precomputation` : array, default nothing, precomputed amplitude of the polarizations (as returned by PolAbs), used if `precomputation` is true.
 
 #### Example:
 ```julia
@@ -205,6 +206,7 @@ function SNR(model::Model,
     res = 1000,
     useEarthMotion::Bool = false,
     precomputation::Bool = true,
+    ampl_precomputation = nothing,
 )
 ##########################
 ## This part is to precompute the amplitude of the waveform which is the longest part of the computation
@@ -233,7 +235,7 @@ function SNR(model::Model,
 
     fgrid = 10 .^ (range(log10(fmin), log10(fcut), length = res))
 
-    if precomputation == true 
+    if precomputation == true && isnothing(ampl_precomputation)
         ampl_precomputation = waveform.PolAbs(
             model,
             fgrid,
@@ -245,7 +247,7 @@ function SNR(model::Model,
             iota,
             optional_param...;
         )
-    else 
+    elseif precomputation == false
         ampl_precomputation = nothing
     end
 
@@ -404,7 +406,7 @@ function SNR(model::Model,
             end   
             
             write(file, "SNRs", SNRs) 
-            if save_catalog & typeof(model) <: GrModel 
+            if save_catalog && typeof(model) <: GrModel 
                 write(file, "mc", mc)
                 write(file, "eta", eta)
                 write(file, "chi1", chi1)

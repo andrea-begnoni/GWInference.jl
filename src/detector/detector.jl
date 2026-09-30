@@ -18,7 +18,7 @@ using Base.Threads
 using Dates
 
 
-export DetectorStructure, DetectorCoordinates, Detector, _readASD, _readPSD, getCoords, CE1Id_coordinates, CE1Id, CE2NM_coordinates,
+export DetectorStructure, DetectorCoordinates, Detector, _readASD, _readPSD, _getCoords, CE1Id_coordinates, CE1Id, CE2NM_coordinates,
          CE2NM, CE2NSW_coordinates, CE2NSW, ETS_coodinates, ETS, ETLS_coodinates, ETLS, ETMR_coordinates, ETMR, ETLMR_coordinates, ETLMR, 
          LIGO_L_coordinates, LIGO_L, LIGO_H_coordinates, LIGO_H, VIRGO_coordinates, VIRGO, KAGRA_coordinates, KAGRA, _available_detectors,
           _define_events, _deltLoc, _patternFunction, PolarizationDet, PhaseDet, Strain, SNR, FisherMatrix, _read_Fishers_SNRs
@@ -111,7 +111,7 @@ end
 
 
 # function to extract coordinates of a detector structure
-function getCoords(detector)
+function _getCoords(detector)
     return detector.latitude_rad, detector.longitude_rad, detector.orientation_rad, detector.arm_aperture_rad
 end
 

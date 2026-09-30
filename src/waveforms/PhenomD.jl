@@ -32,8 +32,7 @@ function PolAbs(model::PhenomD,
     fcutPar = 0.2,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
-    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
-    container = nothing
+    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc
 )
 
     #calculate amplitude of waveform
@@ -48,8 +47,7 @@ function PolAbs(model::PhenomD,
         fcutPar = fcutPar,
         fInsJoin_Ampl = fInsJoin_Ampl,
         GMsun_over_c3 = GMsun_over_c3,
-        GMsun_over_c2_Gpc = GMsun_over_c2_Gpc,
-        container = container
+        GMsun_over_c2_Gpc = GMsun_over_c2_Gpc
     )
 
     # take into account inclination 
@@ -77,8 +75,7 @@ function Pol(model::PhenomD,
     fcutPar = 0.2,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
-    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
-    container = nothing
+    GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc
 )
 
     hp, hc = PolAbs(
@@ -95,8 +92,7 @@ function Pol(model::PhenomD,
         fcutPar = fcutPar,
         fInsJoin_Ampl = fInsJoin_Ampl,
         GMsun_over_c3 = GMsun_over_c3,
-        GMsun_over_c2_Gpc = GMsun_over_c2_Gpc,
-        container = container 
+        GMsun_over_c2_Gpc = GMsun_over_c2_Gpc
     )
 
     # Return polarization with correct relative phase.
@@ -149,21 +145,8 @@ function Phi(model::PhenomD,
     fInsJoin_PHI = 0.018,
     fcutPar = 0.2,
     GMsun_over_c3 = uc.GMsun_over_c3,
-    container = nothing,
+    interpolation = false
 )
-
-    # Get the path to the directory of this file
-    PACKAGE_DIR = @__DIR__
-
-    # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
-    PARENT_DIR = dirname(dirname(PACKAGE_DIR))
-    
-    # Construct the path to the "useful_files" folder from the parent directory
-    USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
-
-    QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
-    QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
-    QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
 
 
     M = mc / (eta^(0.6))
@@ -194,8 +177,27 @@ function Phi(model::PhenomD,
     aeff = _finalspin(model, eta, chi1, chi2)
     Erad = _radiatednrg(model, eta, chi1, chi2)
     # Compute ringdown and damping frequencies from interpolators
-    fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
-    fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+
+    if interpolation == true
+        # Get the path to the directory of this file
+        PACKAGE_DIR = @__DIR__
+
+        # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
+        PARENT_DIR = dirname(dirname(PACKAGE_DIR))
+        
+        # Construct the path to the "useful_files" folder from the parent directory
+        USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
+
+        QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
+        QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
+        QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
+        fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
+        fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    else
+        fring = ((0.05947169566573468 - 0.14989771215394762*aeff + 0.09535606290986028*aeff*aeff + 0.02260924869042963*aeff*aeff*aeff - 0.02501704155363241*aeff*aeff*aeff*aeff - 0.005852438240997211*(aeff^5) + 0.0027489038393367993*(aeff^6) + 0.0005821983163192694*(aeff^7))/(1 - 2.8570126619966296*aeff + 2.373335413978394*aeff*aeff - 0.6036964688511505*aeff*aeff*aeff*aeff + 0.0873798215084077*(aeff^6)))/(1. - Erad)
+        fdamp = ((0.014158792290965177 - 0.036989395871554566*aeff + 0.026822526296575368*aeff*aeff + 0.0008490933750566702*aeff*aeff*aeff - 0.004843996907020524*aeff*aeff*aeff*aeff - 0.00014745235759327472*(aeff^5) + 0.0001504546201236794*(aeff^6))/(1 - 2.5900842798681376*aeff + 1.8952576220623967*aeff*aeff - 0.31416610693042507*aeff*aeff*aeff*aeff + 0.009002719412204133*(aeff^6)))/(1. - Erad)
+    end
+
 
     # Compute sigma coefficients appearing in arXiv:1508.07253 eq. (28)
     # They derive from a fit, whose numerical coefficients are in arXiv:1508.07253 Tab. 5
@@ -340,9 +342,33 @@ function Phi(model::PhenomD,
             (732985.0 / 2268.0 - 24260.0 * eta / 81.0 - 340.0 * eta2 / 9.0) * chi_s +
             (732985.0 / 2268.0 + 140.0 * eta / 9.0) * Seta * chi_a
         ) #variable to be used later
+    # TF2_6coeff_tmp =
+    #     11583.231236531 / 4.694215680 - 640.0 / 3.0 * pi2 -
+    #     684.8 / 2.1 * MathConstants.eulergamma +
+    #     eta * (-15737.765635 / 3.048192 + 225.5 / 1.2 * pi2) +
+    #     eta2 * 76.055 / 1.728 - eta2 * eta * 127.825 / 1.296 - log(4.0) * 684.8 / 2.1 +
+    #     pi * chi1 * m1ByM * (1490.0 / 3.0 + m1ByM * 260.0) +
+    #     pi * chi2 * m2ByM * (1490.0 / 3.0 + m2ByM * 260.0) +
+    #     (326.75 / 1.12 + 557.5 / 1.8 * eta) * eta * chi1dotchi2 +
+    #     (4703.5 / 8.4 + 2935.0 / 6.0 * m1ByM - 120.0 * m1ByM^2 ) *
+    #     m1ByM^2 *
+    #     QuadMon1 *
+    #     chi12 +
+    #     (-4108.25 / 6.72 - 108.5 / 1.2 * m1ByM + 125.5 / 3.6 * m1ByM^2 ) *
+    #     m1ByM^2 *
+    #     chi12 +
+    #     (4703.5 / 8.4 + 2935.0 / 6.0 * m2ByM - 120.0 * m2ByM^2 ) *
+    #     m2ByM^2 *
+    #     QuadMon2 *
+    #     chi22 +
+    #     (-4108.25 / 6.72 - 108.5 / 1.2 * m2ByM + 125.5 / 3.6 * m2ByM^2 ) *
+    #     m2ByM^2 *
+    #     chi22
+
+     
     TF2_6coeff_tmp =
         11583.231236531 / 4.694215680 - 640.0 / 3.0 * pi2 -
-        684.8 / 2.1 * MathConstants.eulergamma +
+        684.8 / 2.1 * 0.5772156649015  +
         eta * (-15737.765635 / 3.048192 + 225.5 / 1.2 * pi2) +
         eta2 * 76.055 / 1.728 - eta2 * eta * 127.825 / 1.296 - log(4.0) * 684.8 / 2.1 +
         pi * chi1 * m1ByM * (1490.0 / 3.0 + m1ByM * 260.0) +
@@ -361,7 +387,8 @@ function Phi(model::PhenomD,
         chi22 +
         (-4108.25 / 6.72 - 108.5 / 1.2 * m2ByM + 125.5 / 3.6 * m2ByM^2 ) *
         m2ByM^2 *
-        chi22
+        chi22 
+        
 
     TF2coeffs = TF2coeffsStructure(
         1.0,
@@ -559,7 +586,8 @@ function Phi(model::PhenomD,
         ) * etaInv
 
     # LAL sets fRef as the minimum frequency, do the same
-    fRef = fgrid[1] 
+    #fRef = fgrid[1] 
+    fRef = minimum(fgrid)
 
     phiRef = ifelse(
         fRef < fInsJoin,
@@ -637,17 +665,16 @@ function Phi(model::PhenomD,
             ),
         ),
     )
-    if typeof(eta) == Float64
-       phi = @. phis + ifelse(fgrid < fcutPar, -t0 * (fgrid - fRef) - phiRef, 0.0)
-       if container !== nothing
-        container .= [phi[i] for i in eachindex(phi)]
-        end
-    else 
-        phi = @. phis + ifelse(fgrid .< fcutPar, -t0 * (fgrid - fRef) - phiRef, ForwardDiff.Dual{typeof(eta).parameters[1]}(0.,zeros(typeof(eta).parameters[3])...))
-        if container !== nothing
-            container .= [phi[i].value for i in eachindex(phi)]
-        end
-    end
+    phi = @. phis + ifelse(fgrid < fcutPar, -t0 * (fgrid - fRef) - phiRef, 0.0)
+    #    if container !== nothing
+    #     container .= [phi[i] for i in eachindex(phi)]
+    #     end
+    # else 
+    #     phi = @. phis + ifelse(fgrid .< fcutPar, -t0 * (fgrid - fRef) - phiRef, ForwardDiff.Dual{typeof(eta).parameters[1]}(0.,zeros(typeof(eta).parameters[3])...))
+    #     if container !== nothing
+    #         container .= [phi[i].value for i in eachindex(phi)]
+    #     end
+    # end
 
 
     return phi
@@ -696,21 +723,8 @@ function Ampl(model::PhenomD,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
-    container = nothing,
+    interpolation = false,
 )
-
-    # Get the path to the directory of this file
-    PACKAGE_DIR = @__DIR__
-
-    # Go two steps back in the path (from ""GW.jl/src/waveforms" to "GW.jl")
-    PARENT_DIR = dirname(dirname(PACKAGE_DIR))
-    
-    # Construct the path to the "useful_files" folder from the parent directory
-    USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
-
-    QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
-    QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
-    QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
 
     # Useful quantities
     M = mc / (eta^(3.0 / 5.0))
@@ -730,9 +744,28 @@ function Ampl(model::PhenomD,
     # Compute final spin and radiated energy
     aeff = _finalspin(model, eta, chi1, chi2)
     Erad = _radiatednrg(model, eta, chi1, chi2)
-    # Compute ringdown and damping frequencies from interpolators
-    fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
-    fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    
+    if interpolation == true
+        # Get the path to the directory of this file
+        PACKAGE_DIR = @__DIR__
+
+        # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
+        PARENT_DIR = dirname(dirname(PACKAGE_DIR))
+        
+        # Construct the path to the "useful_files" folder from the parent directory
+        USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
+
+        QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
+        QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
+        QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
+        fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(aeff) / (1.0 - Erad)
+        fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(aeff) / (1.0 - Erad)
+    else
+        fring = ((0.05947169566573468 - 0.14989771215394762*aeff + 0.09535606290986028*aeff*aeff + 0.02260924869042963*aeff*aeff*aeff - 0.02501704155363241*aeff*aeff*aeff*aeff - 0.005852438240997211*(aeff^5) + 0.0027489038393367993*(aeff^6) + 0.0005821983163192694*(aeff^7))/(1 - 2.8570126619966296*aeff + 2.373335413978394*aeff*aeff - 0.6036964688511505*aeff*aeff*aeff*aeff + 0.0873798215084077*(aeff^6)))/(1. - Erad)
+        fdamp = ((0.014158792290965177 - 0.036989395871554566*aeff + 0.026822526296575368*aeff*aeff + 0.0008490933750566702*aeff*aeff*aeff - 0.004843996907020524*aeff*aeff*aeff*aeff - 0.00014745235759327472*(aeff^5) + 0.0001504546201236794*(aeff^6))/(1 - 2.5900842798681376*aeff + 1.8952576220623967*aeff*aeff - 0.31416610693042507*aeff*aeff*aeff*aeff + 0.009002719412204133*(aeff^6)))/(1. - Erad)
+
+    end
+
     # Compute coefficients gamma appearing in arXiv:1508.07253 eq. (19), the numerical coefficients are in Tab. 5
     xi2 = xi * xi
     gamma1 =
@@ -1233,19 +1266,65 @@ function Ampl(model::PhenomD,
             ),
         ),
     )
-    if typeof(eta) == Float64
-        ampl = Overallamp * amp0 .* (fgrid .^ (-7.0 / 6.0)) .* amplitudeIMR
-        if container !== nothing
-            container .= [ampl[i] for i in eachindex(ampl)]
-         end
-    else 
-        ampl = Overallamp * amp0 .* (fgrid .^ (-7.0 / 6.0)) .* amplitudeIMR
+    ampl = Overallamp * amp0 .* (fgrid .^ (-7.0 / 6.0)) .* amplitudeIMR
+    #     if container !== nothing
+    #         container .= [ampl[i] for i in eachindex(ampl)]
+    #      end
+    # else 
+    #     ampl = Overallamp * amp0 .* (fgrid .^ (-7.0 / 6.0)) .* amplitudeIMR
 
-        if container !== nothing
-            container .= [ampl[i].value for i in eachindex(ampl)]
-        end
-    end
+    #     if container !== nothing
+    #         container .= [ampl[i].value for i in eachindex(ampl)]
+    #     end
+    # end
 
     return ampl
 end
+
+# function hphc(model::PhenomD,
+#     f,
+#     mc,
+#     eta,
+#     chi1,
+#     chi2,
+#     dL,
+#     iota;
+#     fcutPar = 0.2,
+#     fInsJoin_Ampl = 0.014,
+#     fInsJoin_PHI = 0.018,
+#     GMsun_over_c3 = uc.GMsun_over_c3,
+#     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+#     container= nothing,
+#     call_number = 1,
+#     optimization = false
+# )
+
+#     phi = Phi(model, f, mc, eta, chi1, chi2, fcutPar = fcutPar, fInsJoin_PHI = fInsJoin_PHI, GMsun_over_c3 = GMsun_over_c3)
+#     amplitude = Ampl(model, f, mc, eta, chi1, chi2, dL, fcutPar = fcutPar, fInsJoin_Ampl = fInsJoin_Ampl, GMsun_over_c2_Gpc = GMsun_over_c2_Gpc, GMsun_over_c3 = GMsun_over_c3)
+
+#     hp = 0.5 * (1.0 + (cos(iota))^2) .* amplitude .* exp.(-1im * phi)
+#     hc = 1im * cos(iota) .* amplitude .* exp.(-1im * phi)
+    
+#     if typeof(eta) !== Float64 && !isnothing(container)
+
+#         for i in eachindex(f)
+#             container[i] = real(hp[i]).value + 1im * imag(hp[i]).value
+#             container[i + length(f)] = real(hc[i]).value + 1im * imag(hc[i]).value
+#         end    
+
+#     end
+
+#     if optimization == true
+
+#         if call_number == 1
+#             return [real(hp); imag(hp); real(hc); imag(hc)]
+#         else call_number == 2 || call_number == 3
+#             return [hp; hc]
+
+#         end
+#     else
+#         return hp, hc
+#     end
+
+#end
 

@@ -139,20 +139,8 @@ function Phi(model::PhenomNSBH,
         fInsJoin = 0.018,
         fcutPar = 0.2,
         GMsun_over_c3 = uc.GMsun_over_c3,
+        interpolation = false,
     )
-
-    # Get the path to the directory of this file
-    PACKAGE_DIR = @__DIR__
-
-    # Go one step back in the path (from ""GW.jl/src/waveforms" to "GW.jl")
-    PARENT_DIR = dirname(dirname(PACKAGE_DIR))
-    
-    # Construct the path to the "useful_files" folder from the parent directory
-    USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
-
-    QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
-    QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
-    QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
 
 
     M = mc / (eta^(0.6))
@@ -213,9 +201,26 @@ function Phi(model::PhenomNSBH,
     chif = (Lorb + S1BH)*modelRemSp
 
     Erad = _radiatednrg(model, eta, chi1, chi2)
-    # Compute ringdown and damping frequencies from interpolators
-    fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(real(chif)) / (1.0 - Erad)
-    fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(real(chif)) / (1.0 - Erad)
+    
+    if interpolation == true
+        # Get the path to the directory of this file
+        PACKAGE_DIR = @__DIR__
+
+        # Go one step back in the path (from ""GW.jl/src" to "GW.jl")
+        PARENT_DIR = dirname(dirname(PACKAGE_DIR))
+        
+        # Construct the path to the "useful_files" folder from the parent directory
+        USEFUL_FILES_DIR = joinpath(PARENT_DIR, "useful_files/WFfiles/")
+
+        QNMgrid_a = _readQNMgrid_a(USEFUL_FILES_DIR)
+        QNMgrid_fring = _readQNMgrid_fring(USEFUL_FILES_DIR)
+        QNMgrid_fdamp = _readQNMgrid_fdamp(USEFUL_FILES_DIR)
+        fring = linear_interpolation(QNMgrid_a, QNMgrid_fring)(chif) / (1.0 - Erad)
+        fdamp = linear_interpolation(QNMgrid_a, QNMgrid_fdamp)(chif) / (1.0 - Erad)
+    else
+        fring = ((0.05947169566573468 - 0.14989771215394762*chif + 0.09535606290986028*chif*chif + 0.02260924869042963*chif*chif*chif - 0.02501704155363241*chif*chif*chif*chif - 0.005852438240997211*(chif^5) + 0.0027489038393367993*(chif^6) + 0.0005821983163192694*(chif^7))/(1 - 2.8570126619966296*chif + 2.373335413978394*chif*chif - 0.6036964688511505*chif*chif*chif*chif + 0.0873798215084077*(chif^6)))/(1. - Erad)
+        fdamp = ((0.014158792290965177 - 0.036989395871554566*chif + 0.026822526296575368*chif*chif + 0.0008490933750566702*chif*chif*chif - 0.004843996907020524*chif*chif*chif*chif - 0.00014745235759327472*(chif^5) + 0.0001504546201236794*(chif^6))/(1 - 2.5900842798681376*chif + 1.8952576220623967*chif*chif - 0.31416610693042507*chif*chif*chif*chif + 0.009002719412204133*(chif^6)))/(1. - Erad)
+    end
 
     # Compute sigma coefficients appearing in arXiv:1508.07253 eq. (28)
     # They derive from a fit, whose numerical coefficients are in arXiv:1508.07253 Tab. 5

@@ -524,3 +524,86 @@ function Strain(model::Model,
     return strain_det
 
 end
+"""
+Strain for PhenomHM and PhenomXHM built from a precomputed waveform and its jacobian w.r.t. (mc, eta, chi1, chi2, dL, iota).
+It is used by FisherMatrix when `optimization = true`: the (expensive) waveform derivatives are computed only once
+and then reused for each detector, while the derivatives w.r.t. the extrinsic parameters are obtained with ForwardDiff as usual.
+
+    Strain(model, DetectorCoordinates, f, waveform_values, waveform_jacobian, mc, eta, theta, phi, psi, tcoal, phiCoal; useEarthMotion = false, alpha = 0.)
+
+    #### Input arguments:
+    -  `waveform_values` : array, [hp; hc] evaluated on `f`
+    -  `waveform_jacobian` : matrix, derivatives of [hp; hc] w.r.t. (mc, eta, chi1, chi2, dL, iota), one column per parameter
+    -  the other arguments are as in the standard Strain function
+
+    The function has to be called inside ForwardDiff.jacobian with the 11 PhenomHM/PhenomXHM parameters,
+    ordered as (mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal).
+"""
+function Strain(model::Union{PhenomHM, PhenomXHM},
+    DetectorCoordinates::DetectorStructure,
+    f::AbstractArray,
+    waveform_values::AbstractArray,
+    waveform_jacobian::AbstractArray,
+    mc,
+    eta,
+    theta,
+    phi,
+    psi,
+    tcoal,
+    phiCoal;
+    useEarthMotion = false,
+    alpha = 0.0
+)
+
+    len = length(f)
+    tag = typeof(eta).parameters[1]
+
+    hp = _dual_polarization(tag, view(waveform_values, 1:len), view(waveform_jacobian, 1:len, :))
+    hc = _dual_polarization(tag, view(waveform_values, len+1:2*len), view(waveform_jacobian, len+1:2*len, :))
+
+    pol_det = PolarizationDet(
+        model,
+        DetectorCoordinates,
+        [hp, hc],
+        f,
+        mc,
+        eta,
+        theta,
+        phi,
+        psi,
+        tcoal;
+        alpha = alpha,
+        useEarthMotion = useEarthMotion
+    )
+
+    # the complete phase is already included in hphc(), as in Phi(model::PhenomHM, ...)
+    strain_det = Strain(
+        model,
+        DetectorCoordinates,
+        pol_det,
+        zeros(len),
+        f,
+        mc,
+        eta,
+        theta,
+        phi,
+        tcoal,
+        phiCoal,
+        useEarthMotion = useEarthMotion
+    )
+
+    return strain_det
+
+end
+
+# Build a complex dual number from a value and its derivatives w.r.t. (mc, eta, chi1, chi2, dL, iota),
+# placed at the positions of these parameters among (mc, eta, chi1, chi2, dL, theta, phi, iota, psi, tcoal, phiCoal)
+function _dual_polarization(tag, values::AbstractVector, jacobian::AbstractMatrix)
+    return map(eachindex(values)) do i
+        h_real = ForwardDiff.Dual{tag}(real(values[i]), _hphc_partials(real, jacobian, i)...)
+        h_imag = ForwardDiff.Dual{tag}(imag(values[i]), _hphc_partials(imag, jacobian, i)...)
+        complex(h_real, h_imag)
+    end
+end
+
+_hphc_partials(part, J, i) = (part(J[i,1]), part(J[i,2]), part(J[i,3]), part(J[i,4]), part(J[i,5]), 0., 0., part(J[i,6]), 0., 0., 0.)

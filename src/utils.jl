@@ -3,10 +3,14 @@ module UtilsAndConstants    # this is the name of the module
 using ForwardDiff # these are the Julia packages that are used in this module
 using LinearAlgebra
 using LaTeXStrings
+using Base.Threads
+using Unitful
+using UnitfulAstro 
 
 
 export GMsun_over_c3, GMsun_over_c2, uGpc, GMsun_over_c2_Gpc, REarth_km, clight_kms, clightGpc, Lamt_delLam_from_Lam12,
-         _ra_dec_from_theta_phi_rad, _theta_phi_from_ra_dec_rad, CovMatrix, Errors, SkyArea, _orientationBigCircle, CovMatrix_Lamt_delLam
+         _ra_dec_from_theta_phi_rad, _theta_phi_from_ra_dec_rad, CovMatrix, Errors, SkyArea, _orientationBigCircle, CovMatrix_Lamt_delLam,
+         masses_from_chirp_eta, masses_z_to_chirp_eta
 
 
 ##############################################################################
@@ -34,7 +38,7 @@ Omega0_m = 0.3153
 
 Omega0_Lambda = 1 - Omega0_m
 
-H0 = 67.66 # km/s 1/Mpc
+H0 = 67.66u"km/s/Mpc" # km/s 1/Mpc
 
 
 ##############################################################################
@@ -50,6 +54,69 @@ polarization_dict = Dict(
 
 ##############################################################################
 
+"""
+Compute the masses of the two objects, in the source frame, from the chirp mass, in the detector frame, the symmetric mass ratio and the redshift.
+The chirp mass is defined as M_c = (m1*m2)^(3/5)/(m1+m2)^(1/5) * (1+z) and the symmetric mass ratio is defined as eta = m1*m2/(m1+m2)^2.
+#### Input arguments:
+-  float or vector mc chirp mass
+-  float or vector eta symmetric mass ratio
+-  float or vector z redshift
+#### Outputs:
+-  (float, float) or (vector, vector) m1 and m2 Mass of object 1 and object 2
+#### Example:
+```julia
+    mc = 1.0
+    eta = 0.25
+    z = 0.1
+    m1, m2 = masses_from_chirp_eta(mc, eta, z)
+    println("m1: ", m1)
+    println("m2: ", m2)
+``` 
+"""
+function masses_from_chirp_eta(
+    mc::Union{Float64, Vector{Float64}},
+    eta::Union{Float64, Vector{Float64}},
+    z::Union{Float64, Vector{Float64}}
+    )
+    # check if mc, eta and z are the same size
+    if length(mc) != length(eta) || length(mc) != length(z)
+        throw(ArgumentError("mc, eta and z must be the same size"))
+    end
+
+    mc_source = @. mc/(1+z)
+    M = @. mc_source/eta^(3/5)
+    Seta = @. sqrt(1 - 4*eta)
+    m1 = @. 0.5 * (1.0 + Seta) * M
+    m2 = @. 0.5 * (1.0 - Seta) * M
+    return m1, m2
+end
+
+
+"""
+Compute the chirp mass and symmetric mass ratio from the masses of the two objects, in the source frame, and the redshift.
+The chirp mass is defined as M_c = (m1*m2)^(3/5)/(m1+m2)^(1/5) * (1+z) and the symmetric mass ratio is defined as eta = m1*m2/(m1+m2)^2.
+#### Input arguments:
+-  float or vector m1 mass of object 1
+-  float or vector m2 mass of object 2
+-  float or vector z redshift
+#### Outputs:
+-  (float, float) or (vector, vector) mc and eta chirp mass and symmetric mass ratio
+#### Example:
+```julia
+    m1 = 1.0
+    m2 = 0.5
+    z = 0.1
+    mc, eta = masses_z_to_chirp_eta(m1, m2, z)
+    println("mc: ", mc)
+    println("eta: ", eta)
+```
+"""
+function masses_z_to_chirp_eta(m1::Union{Float64, Vector{Float64}}, m2::Union{Float64, Vector{Float64}}, z::Union{Float64, Vector{Float64}})
+    mc = @. ((m1*m2)^(3/5))/((m1+m2)^(1/5))*(1+z) # chirp mass at detector
+    eta = @. m1*m2/(m1 + m2)^2
+    return mc, eta
+end
+
 r"""
 Compute the dimensionless tidal deformability combinations L"\tilde{Lambda}" and L"\delta\tilde{Lambda}", defined in `arXiv:1402.5156 <https://arxiv.org/abs/1402.5156>`_ eq. (5) and (6), as a function of the dimensionless tidal deformabilities of the two objects and the symmetric mass ratio.
 Function from GWFAST.
@@ -63,11 +130,11 @@ Function from GWFAST.
 - (float, float) L"\tilde{Lambda}" and L"\delta\tilde{Lambda}", 
 
 """
-function Lamt_delLam_from_Lam12(Lambda1, Lambda2, eta)
+function Lamt_delLam_from_Lam12(eta, Lambda1, Lambda2)
 
     eta2 = eta*eta
 
-    Seta = sqrt(1.0 - 4.0 * eta)  
+    Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)
         
     Lamt = (8. /13.)*((1. + 7. *eta - 31. *eta2)*(Lambda1 + Lambda2) + Seta*(1. + 9. *eta - 11. *eta2)*(Lambda1 - Lambda2))
     
@@ -90,12 +157,13 @@ Compute the covariance matrix of L"\tilde{Lambda}" and L"\delta\tilde{Lambda}" f
 -  Covariance matrix of L"\tilde{Lambda}" and L"\delta\tilde{Lambda}".
 
 """
-function CovMatrix_Lamt_delLam(Fisher, Lambda1, Lambda2, eta)
+function CovMatrix_Lamt_delLam(Cov, eta, Lambda1, Lambda2)
 
-    Cov_reduced = CovMatrix(Fisher, debug=false)[[12, 13, 2], [12, 13, 2]]
+    #Cov_reduced = CovMatrix(Fisher, debug=false)[[2, 12, 13], [2, 12, 13]]
+    Cov_reduced = Cov[[2, 12, 13], [2, 12, 13]]
     # jacobian
-    J1 = ForwardDiff.gradient(x->Lamt_delLam_from_Lam12(x...)[1], [Lambda1, Lambda2, eta])
-    J2 = ForwardDiff.gradient(x->Lamt_delLam_from_Lam12(x...)[2], [Lambda1, Lambda2, eta])
+    J1 = ForwardDiff.gradient(x->Lamt_delLam_from_Lam12(x...)[1], [eta, Lambda1, Lambda2])
+    J2 = ForwardDiff.gradient(x->Lamt_delLam_from_Lam12(x...)[2], [eta, Lambda1, Lambda2])
     J = [J1 J2]'
     # covariance matrix of Lambda tilde and delta Lambda
     Cov_Lamt_delLam = J * Cov_reduced * J'
@@ -235,8 +303,8 @@ function CovMatrix(Fisher::Matrix{Float64}; debug = true, threshold = 5e-2, call
             inversion_error_ = maximum(abs.(Fisher * covMatrix_ - I))
 
             if debug == true
-                println("Inversion error: ", inversion_error_)
                 println("Inversion error before normalization: ", inversion_error)
+                println("Inversion error after normalization: ", inversion_error_)
             end
 
             if inversion_error_ < inversion_error
@@ -265,7 +333,7 @@ function CovMatrix(Fisher::Matrix{Float64}; debug = true, threshold = 5e-2, call
             try 
                 Fisher_BF = BigFloat.(Fisher) # convert Fisher matrix to BigFloat (BF)
                 covMatrix = inv(cholesky(Fisher_BF))
-                return Float64.(covMatrix) 
+                return covMatrix
             catch
                 idx = 3
                 # covMatrix = zeros(size(Fisher))
@@ -288,7 +356,7 @@ function CovMatrix(Fisher::Matrix{Float64}; debug = true, threshold = 5e-2, call
         if debug == true
             println("Inversion failed")
             inversion_error = maximum(abs.(Fisher * covMatrix - I))
-            println("Inversion error: ", inversion_error)
+            println("Inversion error: ", Float64(inversion_error))
         end
 
         if called_by_3D_function
@@ -299,6 +367,8 @@ function CovMatrix(Fisher::Matrix{Float64}; debug = true, threshold = 5e-2, call
     else
         if debug == true
             println("Inversion successful")
+            inversion_error = maximum(abs.(Fisher * covMatrix - I))
+            println("Inversion error: ", Float64(inversion_error))
         end
         idx = 0 # successful inversion
     end
@@ -307,6 +377,10 @@ function CovMatrix(Fisher::Matrix{Float64}; debug = true, threshold = 5e-2, call
 
     # return covMatrix in 64 bit precision
     covMatrix = Float64.(covMatrix)
+
+    if debug == true
+        println()
+    end
 
     if called_by_3D_function
         return covMatrix, idx
@@ -326,7 +400,7 @@ function CovMatrix(Fisher::Array{Float64, 3}; threshold = 5e-2, force_high_preci
     n = size(Fisher)[1]
     failed_inv = 0
 
-    for i in 1:n
+    @threads for i in 1:n
         idx=0
         covMatrix[i,:,:], idx= CovMatrix(Fisher[i,:,:], debug = debug, threshold = threshold, called_by_3D_function = true, force_high_precision = force_high_precision)
         failed_inv += Int(idx/3)
@@ -360,7 +434,7 @@ function Errors(covMatrix::Array{Float64, 3})
     nPar = size(covMatrix)[2]
     errors = zeros(nCov, nPar)
 
-    for ii in 1:nCov
+    @threads for ii in 1:nCov
         errors[ii,:] = sqrt.(diag(covMatrix[ii,:,:]))
     end
 
@@ -402,7 +476,7 @@ function SkyArea(covMatrix::Array{Float64,3}, thetaCatalog::Array; percent_level
     nCov = size(covMatrix)[1]
     skyArea = zeros(nCov)
 
-    for ii in 1:nCov
+    @threads for ii in 1:nCov
         skyArea[ii] = SkyArea(covMatrix[ii,:,:], thetaCatalog[ii], percent_level=percent_level)
     end
 
@@ -412,8 +486,8 @@ end
 """ 
 Calculate the optimal angle for the orientation of the detector to maximize the signal from CBC gravitational wave. 
 The function can be used in the definition of 2 detectors network.
-It outputs the orientation of the second detectors such that it is at 45 degrees 
-These reasoning works if the first detector is oriented towards the East.
+It outputs the orientation of the second detectors such that it is at 45 degrees w.r.t. the first detector.
+These reasoning works for all orientation conventions and in the GWJulia convention, it is the angle w.r.t. the local East.
 If you want to use it for a different orientation, you need to add the angle of the first detector to the output of this function.
 
 #### Input arguments:
@@ -446,13 +520,11 @@ function _orientationBigCircle(det1, det2)
     Lambda1 = eFactor * tan(lat2)/tan(lat1) + eS*sqrt( (1 + eFactor * tan(lat2)^2) / (1 + eFactor * tan(lat1)^2))
     Lambda2 = eFactor * tan(lat1)/tan(lat2) + eS*sqrt( (1 + eFactor * tan(lat1)^2) / (1 + eFactor * tan(lat2)^2))
 
-
-    # alpha1 = atan( sin(long2 - long1) , ((Lambda1 - cos(long2 - long1))*sin(lat1)))
-    # alpha2 = atan( sin(long1 - long2) , ((Lambda2 - cos(long1 - long2))*sin(lat2)))
     alpha1 = atan( sin(long2 - long1) , ((Lambda1 - cos(long2 - long1))*sin(lat1)))
-    alpha2 = atan( sin(long1 - long2) , ((Lambda2 - cos(long1 - long2))*sin(lat2)))
+    alpha2 = atan( sin(long1 - long2) , ((Lambda2 - cos(long1 - long2))*sin(lat2))) + pi
 
-    return mod(orientation1 + alpha1 - alpha2 + pi/4, pi)
+    angle_ = orientation1 + alpha1 - alpha2 + pi/4
+    return  mod(angle_ + pi, 2pi) - pi
 
 end
 

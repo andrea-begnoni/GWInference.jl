@@ -790,6 +790,9 @@ function hphc(model::PhenomHM,
     fInsJoin_Ampl = 0.014,
     GMsun_over_c3 = uc.GMsun_over_c3,
     GMsun_over_c2_Gpc = uc.GMsun_over_c2_Gpc,
+    container= nothing,
+    call_number = 1,
+    optimization = false
 )
 
     # This function retuns directly the full plus and cross polarisations, avoiding for loops over the modes
@@ -2100,7 +2103,26 @@ function hphc(model::PhenomHM,
         dims = 2,
     ))
 
-    return hp, hc
+    if typeof(eta) !== Float64 && !isnothing(container)
+
+        for i in eachindex(fgrid)
+            container[i] = real(hp[i]).value + 1im * imag(hp[i]).value
+            container[i + length(fgrid)] = real(hc[i]).value + 1im * imag(hc[i]).value
+        end    
+
+    end
+    
+    if optimization == true
+
+        if call_number == 1
+            return [real(hp); imag(hp); real(hc); imag(hc)]
+        else call_number == 2 || call_number == 3
+            return [hp; hc]
+
+        end
+    else
+        return hp, hc
+    end
 
 end
 

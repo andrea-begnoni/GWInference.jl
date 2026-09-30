@@ -1,8 +1,10 @@
-## GWJULIA (a.k.a. GW.jl)
+## GWJULIA (a.k.a. GWInference.jl)
 
 This folder contains useful files for the code, they are divided in:
 - Waveform files (in the folder WFfiles)
 - Power Spectral Densities (in the folder PSDs)
+
+In writing this folder we acknowledge the help of the GWFAST documentation.
 
 
 ### Waveform Files (WFfiles)
@@ -17,7 +19,7 @@ Note that power spectral densities are the square of the amplitude spectral dens
 The files can have 2 or 4 columns, the first one is always the freuencies and the last one is always the full PSD. In the case there are 4 columns there are the PSD for high and low frequncies (HF and LF). 
 To select different columns from the function _readPSD(..., cols = [1,4]) where the first index is the frequency and the second one is the PSD.
 
-Inside this folder there are the Power Spectral Densities (or ASD) divided in 3 sub-folder:
+Inside this folder there are the Power Spectral Densities (or ASD) divided in 5 sub-folder:
 - curves\_Jan\_2020
 - ET\_curves
 - CE\_curves
@@ -44,7 +46,7 @@ The folder contains ASDs for:
 * the 40 km detector tuned for low-freqency signals (```cosmic_explorer_40km_lf```)
 
 
-#### LVC_O1O2O3/
+#### LVK_O1O2O3/
 
 The folder contains ASDs for the LIGO and Virgo detectors during their O1, O2 and O3 observing runs, extracted in specific moment from actual data.
 
@@ -57,3 +59,8 @@ ASDs used for the paper [*Prospects for observing and localizing gravitational-w
 Available at [https://dcc.ligo.org/LIGO-T2000012/public](https://dcc.ligo.org/LIGO-T2000012/public). 
 
 The folder contains ASDs for the Advanced LIGO, Advanced Virgo and KAGRA detectors during the O3, O4 and O5 observing runs.
+
+
+#### EOS\_table
+
+Tables of masses and tidal deformabilities for different Equation of states (EOS), used in catalog.jl. The tidal deformabilities are calculated using the LALsuite tool and we stick with its EOS name convention.
