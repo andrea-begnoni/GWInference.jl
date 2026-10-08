@@ -37,10 +37,11 @@ Directories:
 
 ### The `src` directory
 
-The `src` forlder contains the 4 modules that make the code:
-- `waveform.jl` contains the waveforms models available, from LAL
-- `detector.jl` it calls the waveform from the previous module and contains functions to do all the computations till the fisher matrix
-- `catalog.jl` generates and reads the catalogs
-- `utils.jl` contains multi-purpose functions and the fucntions to analyze the Fisher Matrix
+The `src` folder contains the 4 modules used by the code:
+
+- `catalog.jl` contains population models and functions to generate and load the catalogs
+- `detector.jl` contains all relevant info (e.g., positions, noises, patter functions) to output the signal measured by each detector (for the waveform uses `waveforms`, see below)
+- `utils.jl` contains multi-purpose functions and the functions to analyze the Fisher Matrix
+- `waveforms` folder containing all available waveforms models, tested to be compatible with their LAL counterparts. It also contains `PhenomXE`, the eccentric aligned-spin (2,2)-mode model IMRPhenomXE ([arXiv:2601.03340](https://arxiv.org/abs/2601.03340)) ported from `phenomxpy`, which adds the eccentricity and the mean anomaly (defined at the starting frequency) to the parameters: `hphc(PhenomXE(), f, mc, eta, chi1, chi2, dL, iota, ecc, meanAno)`
 
 
