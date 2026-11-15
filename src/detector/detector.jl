@@ -18,7 +18,7 @@ using Base.Threads
 using Dates
 
 
-export DetectorStructure, DetectorCoordinates, Detector, _readASD, _readPSD, getCoords, CE1Id_coordinates, CE1Id, CE2NM_coordinates,
+export DetectorStructure, DetectorCoordinates, Detector, _readASD, _readPSD, _readASD_xylophone, getCoords, CE1Id_coordinates, CE1Id, CE2NM_coordinates,
          CE2NM, CE2NSW_coordinates, CE2NSW, ETS_coodinates, ETS, ETLS_coodinates, ETLS, ETMR_coordinates, ETMR, ETLMR_coordinates, ETLMR, 
          LIGO_L_coordinates, LIGO_L, LIGO_H_coordinates, LIGO_H, VIRGO_coordinates, VIRGO, KAGRA_coordinates, KAGRA, _available_detectors,
           _define_events, _deltLoc, _patternFunction, PolarizationDet, PhaseDet, Strain, SNR, FisherMatrix, _read_Fishers_SNRs
@@ -109,12 +109,43 @@ function _readPSD(pathPSD::String; cols = [1,2])
     return fNoise, psd
 end
 
+"""
+function to read the noise of a xylophone detector (e.g. ET), given as two separate amplitude spectral densities
+for the low-frequency (LF) and high-frequency (HF) interferometers. The two are combined as 1/S = 1/S_LF + 1/S_HF
+    _readASD_xylophone("path/to/LF.txt", "path/to/HF.txt")
+
+#### Input arguments:
+-  `pathLF` : string, path to the file .txt containing the amplitude spectral density of the LF interferometer
+-  `pathHF` : string, path to the file .txt containing the amplitude spectral density of the HF interferometer
+
+#### Optional arguments:
+-  `cols` : array, default [1,4], columns of the files containing the frequency and the amplitude spectral density
+            (for the ET curves in useful_files/ET_curves, column 3 includes the high-frequency correction for a signal 15 deg off zenith, column 4 for 0 deg)
+
+#### Output:
+-  `fNoise` : array, frequency of the noise
+-  `psd` : array, combined power spectral density of the noise
+
+#### Example:
+```julia
+fNoise, psd = _readASD_xylophone("path/to/LF.txt", "path/to/HF.txt", cols = [1,4])
+```
+"""
+function _readASD_xylophone(pathLF::String, pathHF::String; cols = [1,4])
+    fLF, psdLF = _readASD(pathLF, cols = cols)
+    fHF, psdHF = _readASD(pathHF, cols = cols)
+    fLF == fHF || error("The LF and HF noise curves must be sampled on the same frequency grid")
+    return fLF, 1 ./ (1 ./ psdLF .+ 1 ./ psdHF)
+end
+
 
 # function to extract coordinates of a detector structure
 function getCoords(detector)
     return detector.latitude_rad, detector.longitude_rad, detector.orientation_rad, detector.arm_aperture_rad
 end
 
+# ET noise curves (Jan 2026 snapshot, see useful_files/ET_curves/README.md): 10 km for the triangle, 15 km for the 2L configuration.
+# The previous ET curves are kept in useful_files/ET_curves/old
 # Here we define the detectors present in the code, to create a new one, just follow the structure of the existing ones, for more information look at the tutorials
 
 # Get the path to the directory of this file
@@ -136,16 +167,16 @@ CE2NSW_coordinates=detector.DetectorCoordinates(-34. * pi/180, 145. * pi/180, 0.
 CE2NSW=detector.Detector(-34. * pi/180, 145. * pi/180, 0. * pi/180, 90. * pi/180, 'L', _readASD(PSDS_DIR*"CE_curves/cosmic_explorer_20km.txt")...,  "CE2NSW")
 
 ETS_coodinates = detector.DetectorCoordinates((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 60. * pi/180)
-ETS=detector.Detector((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 60. * pi/180, 'T', _readASD(PSDS_DIR*"ET_curves/ET-0000A-18_ETDSensitivityCurveTxtFile.txt", cols=[1,4])...,  "ETS")
+ETS=detector.Detector((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 60. * pi/180, 'T', _readASD_xylophone(PSDS_DIR*"ET_curves/10_km/LF/data/total.txt", PSDS_DIR*"ET_curves/10_km/HF/data/total.txt", cols=[1,4])...,  "ETS")
 
 ETLS_coodinates = detector.DetectorCoordinates((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 90. * pi/180)
-ETLS = detector.Detector((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 90. * pi/180, 'L', _readASD(PSDS_DIR*"ET_curves/ET-0000A-18_ETDSensitivityCurveTxtFile.txt", cols=[1,4])...,  "ETLS")
+ETLS = detector.Detector((40. +31. /60.) * pi/180, (9. +25. /60.) * pi/180, 0. * pi/180, 90. * pi/180, 'L', _readASD_xylophone(PSDS_DIR*"ET_curves/15_km/LF/data/total.txt", PSDS_DIR*"ET_curves/15_km/HF/data/total.txt", cols=[1,4])...,  "ETLS")
 
 ETMR_coordinates = detector.DetectorCoordinates((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 60. * pi/180)
-ETMR = detector.Detector((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 60. * pi/180, 'T', _readASD(PSDS_DIR*"ET_curves/ET-0000A-18_ETDSensitivityCurveTxtFile.txt", cols=[1,4])...,  "ETMR")
+ETMR = detector.Detector((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 60. * pi/180, 'T', _readASD_xylophone(PSDS_DIR*"ET_curves/10_km/LF/data/total.txt", PSDS_DIR*"ET_curves/10_km/HF/data/total.txt", cols=[1,4])...,  "ETMR")
 
 ETLMR_coordinates = detector.DetectorCoordinates((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 90. * pi/180)
-ETLMR = detector.Detector((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 90. * pi/180, 'L', _readASD(PSDS_DIR*"ET_curves/ET-0000A-18_ETDSensitivityCurveTxtFile.txt", cols=[1,4])...,  "ETLMR")
+ETLMR = detector.Detector((50. +43. /60. +23. /3600.) * pi/180, (5. +55. /60. +14. /3600.) * pi/180, 0. * pi/180, 90. * pi/180, 'L', _readASD_xylophone(PSDS_DIR*"ET_curves/15_km/LF/data/total.txt", PSDS_DIR*"ET_curves/15_km/HF/data/total.txt", cols=[1,4])...,  "ETLMR")
 
 LIGO_L_coordinates = detector.DetectorCoordinates(30.563 * pi/180, -90.774 * pi/180, 242.71636956358617* pi/180, 90. * pi/180)
 LIGO_L = detector.Detector(30.563 * pi/180, -90.774 * pi/180, 242.71636956358617* pi/180, 90. * pi/180, 'L', _readASD(PSDS_DIR*"observing_scenarios_paper/aligo_O3actual_L1.txt")...,  "LIGO_L")
@@ -163,7 +194,7 @@ KAGRA = detector.Detector(36.412 * pi/180, 137.306 * pi/180, 15.396* pi/180, 90.
 # with this function you can check all the detectors available, it also prints the length of the arms for future interferomenters
 function _available_detectors()
     println("The detectors available are: ")
-    return ["CE1Id, 40km", "CE2NM, 20km", "CE2NSW, 20km", "ETS, 10km", "ETLS, 10km", "ETMR, 10km", "ETLMR, 10km", "LIGO_L", "LIGO_H", "VIRGO", "KAGRA"]
+    return ["CE1Id, 40km", "CE2NM, 20km", "CE2NSW, 20km", "ETS, 10km", "ETLS, 15km", "ETMR, 10km", "ETLMR, 15km", "LIGO_L", "LIGO_H", "VIRGO", "KAGRA"]
 end
 
 # this function returns the detector structure given the name of the detector
