@@ -12,6 +12,10 @@ Main features:
 - Perform a Fisher Matrix analysis with automatic differentiation
 - Analyze the results and obtain the errors on the parameters of the binary
 - Very fast, it takes less than a second to compute the Fisher Matrix, independently of the waveform model and the detector(s) configuration
+- Many advanced waveforms converted in Julia, e.g.:
+    - IMRPhenomXHM
+    - IMRPhenomD_NRTidalv2
+    - IMRPhenomNSBH
 
 ## Authors
 - Andrea Begnoni (UIB) main developer

@@ -22,7 +22,7 @@ function Phase_22_ConnectionCoefficients(mc,
 
     chi12, chi22 = chi1 * chi1, chi2 * chi2
     chi1dotchi2 = chi1 * chi2
-    Seta = ifelse(eta < 0.25, sqrt(1.0 - 4.0 * eta), 0.0)
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)), 0.0)
 
     # These are m1/Mtot and m2/Mtot
     m1ByM = 0.5 * (1.0 + Seta)
@@ -704,7 +704,7 @@ function Ampl_22_ConnectionCoefficients(
 
     chi12, chi22 = chi1 * chi1, chi2 * chi2
     chi1dotchi2 = chi1 * chi2
-    Seta = ifelse(eta < 0.25, sqrt(1.0 - 4.0 * eta), 0.0)
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)), 0.0)
 
     # These are m1/Mtot and m2/Mtot
     m1ByM = 0.5 * (1.0 + Seta)
@@ -966,7 +966,7 @@ function Ampl_22_ConnectionCoefficients(
     )
     fAmpRDMin = ifelse(
         gamma2 <= 1.0,
-        abs(fring + fdamp * gamma3 * (sqrt(1.0 - gamma2 * gamma2) - 1.0) / gamma2),
+        abs(fring + fdamp * gamma3 * (sqrt(max(1.0 - gamma2 * gamma2, 0.0)) - 1.0) / gamma2),
         abs(fring + fdamp * (-1.0) * gamma3 / gamma2),
     )
     v1RD = (

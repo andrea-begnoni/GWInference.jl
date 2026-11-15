@@ -140,7 +140,7 @@ function Phi(model::PhenomXAS,
 
     chi12, chi22 = chi1 * chi1, chi2 * chi2
     chi1dotchi2 = chi1 * chi2
-    Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)  
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)),0.)  
 
     # These are m1/Mtot and m2/Mtot
     m1ByM = 0.5 * (1.0 + Seta)
@@ -714,7 +714,7 @@ function Ampl(model::PhenomXAS,
 
     chi12, chi22 = chi1 * chi1, chi2 * chi2
     chi1dotchi2 = chi1 * chi2
-    Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)  
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)),0.)  
 
     # These are m1/Mtot and m2/Mtot
     m1ByM = 0.5 * (1.0 + Seta)
@@ -764,7 +764,7 @@ function Ampl(model::PhenomXAS,
 
     gamma2        = (((0.8312293675316895 + 7.480371544268765*eta - 18.256121237800397*eta2)/(1. + 10.915453595496611*eta - 30.578409433912874*eta2)) + ((totchi*(0.5869408584532747 + eta*(-0.1467158405070222 - 2.8489481072076472*totchi) + 0.031852563636196894*totchi + eta2*(0.25295441250444334 + 4.6849496672664594*totchi)))/(3.8775263105069953 - 3.41755361841226*totchi + 1. *totchi2)) + (-0.00548054788508203*dchi*delta*eta))
     gamma3        = (((1.3666000000000007 - 4.091333144596439*eta + 2.109081209912545*eta2 - 4.222259944408823*eta2*eta)/(1. - 2.7440263888207594*eta)) + ((0.07179105336478316 + eta2*(2.331724812782498 - 0.6330998412809531*totchi) + eta*(-0.8752427297525086 + 0.4168560229353532*totchi) - 0.05633734476062242*totchi)*totchi) + (0. * delta * dchi))
-    fAmpRDMin     = ifelse(gamma2 <= 1., abs(fring + fdamp * gamma3 * (sqrt(1. - gamma2 * gamma2) - 1.0) / gamma2), abs(fring + fdamp*(-1.)*gamma3/gamma2))
+    fAmpRDMin     = ifelse(gamma2 <= 1., abs(fring + fdamp * gamma3 * (sqrt(max(1. - gamma2 * gamma2, 0.)) - 1.0) / gamma2), abs(fring + fdamp*(-1.)*gamma3/gamma2))
     v1RD          = (((0.03689164742964719 + 25.417967754401182*eta + 162.52904393600332*eta2)/(1. + 61.19874463331437*eta - 29.628854485544874*eta2)) + ((totchi*(-0.14352506969368556 + 0.026356911108320547*totchi + 0.19967405175523437*totchi2 - 0.05292913111731128*totchi2*totchi + eta2*eta*(-48.31945248941757 - 3.751501972663298*totchi + 81.9290740950083*totchi2 + 30.491948143930266*totchi2*totchi - 132.77982622925845*totchi2*totchi2) + eta*(-4.805034453745424 + 1.11147906765112*totchi + 6.176053843938542*totchi2 - 0.2874540719094058*totchi2*totchi - 8.990840289951514*totchi2*totchi2) - 0.18147275151697131*totchi2*totchi2 + eta2*(27.675454081988036 - 2.398327419614959*totchi - 47.99096500250743*totchi2 - 5.104257870393138*totchi2*totchi + 72.08174136362386*totchi2*totchi2)))/(-1.4160870461211452 + 1. *totchi)) + (-0.04426571511345366*dchi*delta*eta2))
     F1            = fAmpRDMin
     gamma1        = (v1RD / (fdamp * gamma3) ) * (F1*F1 - 2. *F1*fring + fring*fring + fdamp*fdamp*gamma3*gamma3)* exp(((F1 - fring) * gamma2 ) / (fdamp * gamma3))

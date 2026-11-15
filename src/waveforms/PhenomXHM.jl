@@ -68,7 +68,7 @@ end
 #= Inspiral cutting frequency for the Amplitude =#
 function _fcutInsp(model::PhenomXHM, eta, chi1, emm, fMECOlm)
 
-    Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)),0.)
     q = 0.5*(1.0 + Seta - 2.0*eta)/eta
     #Return the end frequency of the inspiral region and the beginning of the intermediate for the amplitude of one mode.
 
@@ -277,7 +277,7 @@ function hphc(model::PhenomXHM, f, mc, eta, chi1, chi2, dL, iota;
 
     chi12, chi22 = chi1 * chi1, chi2 * chi2
     chi1dotchi2 = chi1 * chi2
-    Seta = ifelse(eta<.25,sqrt(1.0 - 4.0 * eta),0.)  
+    Seta = ifelse(eta < 0.25, sqrt(max(1.0 - 4.0 * eta, 0.0)),0.)  
 
     # These are m1/Mtot and m2/Mtot
     m1ByM = 0.5 * (1.0 + Seta)
