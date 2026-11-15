@@ -2,7 +2,7 @@ name = "GWInference"
 uuid = "12bfb5b4-b11b-482e-a53a-61106a071c3c"
 keywords = ["gravitational-waves", "physics", "astronomy"]
 license = "MIT"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Andrea Begnoni <andrea.begnoni@phd.unipd.it> and Joachim Pomper"]
 description = "Gravitational wave fisher forecast package"
 
